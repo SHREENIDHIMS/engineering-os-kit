@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engineering OS Handoff",
+  "type": "object",
+  "required": ["id", "type", "taskId", "fromOwner", "toOwner", "changedLocations", "nextAction"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^HOF-[0-9]{8}-[0-9]{3}$" },
+    "type": { "const": "handoff" },
+    "taskId": { "type": "string", "pattern": "^TASK-" },
+    "fromOwner": { "type": "string", "minLength": 1 },
+    "toOwner": { "type": "string", "minLength": 1 },
+    "changedLocations": { "type": "array", "items": { "type": "string" } },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

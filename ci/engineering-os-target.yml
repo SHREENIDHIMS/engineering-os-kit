@@ -1,0 +1,18 @@
+name: Engineering OS
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  engineering-os:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate Engineering OS records
+        run: node scripts/engineering-os.mjs check-project-safety
+      - name: Verify no tasks stuck in handoff without acceptance
+        run: node scripts/engineering-os.mjs pre-task-check --allow-no-active-task

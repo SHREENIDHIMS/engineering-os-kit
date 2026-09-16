@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engineering OS Decision",
+  "type": "object",
+  "required": ["id", "type", "title", "decision", "rationale", "owner"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^DEC-[0-9]{8}-[0-9]{3}$" },
+    "type": { "const": "decision" },
+    "taskId": { "type": "string", "pattern": "^TASK-" },
+    "title": { "type": "string", "minLength": 1 },
+    "decision": { "type": "string", "minLength": 1 },
+    "alternatives": { "type": "array", "items": { "type": "string" } },
+    "rationale": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string", "minLength": 1 },
+    "locations": { "type": "array", "items": { "type": "string" } }
+  }
+}

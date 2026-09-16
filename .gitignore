@@ -1,0 +1,3 @@
+node_modules/
+.engineering-os/state/*.lock
+.engineering-os/evidence/*.local.json

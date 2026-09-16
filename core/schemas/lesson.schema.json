@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engineering OS Lesson",
+  "type": "object",
+  "required": ["id", "type", "status", "incidentId", "preventionType", "enforcementLocation", "validationEvidenceIds"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^LES-[0-9]{8}-[0-9]{3}$" },
+    "type": { "const": "lesson" },
+    "status": { "enum": ["draft", "enforced", "superseded"] },
+    "incidentId": { "type": "string", "pattern": "^INC-" },
+    "preventionType": { "enum": ["test", "static-check", "ci-gate", "migration-check", "review-rule", "agent-policy"] },
+    "enforcementLocation": { "type": "string", "minLength": 1 },
+    "validationEvidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engineering OS Incident",
+  "type": "object",
+  "required": ["id", "type", "status", "severity", "taskId", "rootCause", "lessonId"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^INC-[0-9]{8}-[0-9]{3}$" },
+    "type": { "const": "incident" },
+    "status": { "enum": ["open", "contained", "resolved"] },
+    "severity": { "enum": ["low", "medium", "high", "critical"] },
+    "taskId": { "type": "string", "pattern": "^TASK-" },
+    "rootCause": { "type": "string", "minLength": 1 },
+    "lessonId": { "type": "string", "pattern": "^LES-" }
+  }
+}

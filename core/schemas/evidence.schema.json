@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engineering OS Evidence",
+  "type": "object",
+  "required": ["id", "type", "command", "exitCode", "summary", "recordedBy"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^EVD-[0-9]{8}-[0-9]{3}$" },
+    "type": { "const": "evidence" },
+    "command": { "type": "string", "minLength": 1 },
+    "exitCode": { "type": "number" },
+    "summary": { "type": "string", "minLength": 1 },
+    "recordedBy": { "type": "string", "minLength": 1 }
+  }
+}

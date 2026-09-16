@@ -1,0 +1,14 @@
+{
+  "name": "engineering-os-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable, evidence-driven engineering workflow kit.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node ./src/cli.mjs help"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
