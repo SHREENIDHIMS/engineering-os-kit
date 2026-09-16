@@ -11,6 +11,9 @@ validate service/database/API boundaries.
 ## Specialist deliverable
 Validate real service, API and database boundaries with controlled fixtures and record observed contracts.
 
+## Integration gate
+Exercise the real boundary with an isolated fixture, assert request and response or persistence contracts, clean up owned resources, and record external dependency assumptions. Mocks may cover failure injection only.
+
 
 
 ## Engineering OS (mandatory)

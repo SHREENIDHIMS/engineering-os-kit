@@ -11,6 +11,9 @@ turn requests into scope and acceptance criteria.
 ## Specialist deliverable
 Turn the request into measurable acceptance criteria, non-goals, constraints, ambiguities and decision log entries in the active task.
 
+## Requirements gate
+Every acceptance criterion must be observable and paired with a verification command. Block implementation when a required behavior, non-goal, or ambiguity has no owner decision.
+
 
 
 ## Engineering OS (mandatory)

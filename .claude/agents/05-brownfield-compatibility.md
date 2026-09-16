@@ -11,6 +11,9 @@ preserve brownfield compatibility.
 ## Specialist deliverable
 Produce a compatibility matrix covering existing consumers, versions, data, configuration and migration risks.
 
+## Compatibility gate
+Do not approve a change while any known consumer is classified as unknown. Each affected contract must be marked preserved, deprecated with a shim, or intentionally breaking with authorization and migration notes.
+
 
 
 ## Engineering OS (mandatory)

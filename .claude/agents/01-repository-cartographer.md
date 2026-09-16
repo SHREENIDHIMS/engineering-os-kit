@@ -11,6 +11,9 @@ map repository before changes.
 ## Specialist deliverable
 Produce a repository map: entry points, modules, ownership, dependencies, interfaces and test surfaces, all with `path:line` evidence. Follow `adapters/claude-code/ROLE_PROTOCOLS.md`.
 
+## Cartography gate
+Do not recommend edits until the map names the runtime entry point, owning module, at least one caller, and the narrowest relevant test surface. Mark unresolved ownership or missing tests explicitly.
+
 
 
 ## Engineering OS (mandatory)

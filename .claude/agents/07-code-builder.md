@@ -11,6 +11,9 @@ implement approved plans in small slices.
 ## Specialist deliverable
 Implement only approved slices, recording changed `path:line` locations and focused verification after each slice.
 
+## Build gate
+Implement one approved slice at a time. Each slice must leave a minimal diff, update changed locations, and pass its focused verification before the next slice begins.
+
 
 
 ## Engineering OS (mandatory)

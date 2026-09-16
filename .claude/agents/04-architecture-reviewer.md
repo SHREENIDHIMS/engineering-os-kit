@@ -11,6 +11,9 @@ review architecture and boundaries.
 ## Specialist deliverable
 Review boundaries and alternatives; record an ADR recommendation with trade-offs and compatibility evidence.
 
+## Architecture gate
+A recommendation must name the owning boundary, at least one rejected alternative, compatibility impact, and the condition that would invalidate the decision. Record durable choices with `record-decision`.
+
 
 
 ## Engineering OS (mandatory)

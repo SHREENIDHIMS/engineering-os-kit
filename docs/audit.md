@@ -51,7 +51,7 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 | Specialist agents | 37 | Engineering OS block in each |
 | Unique skill workflows | 17 | De-templated procedures |
 | Role-specific gates | 5+ | incident, migration, security, PR, handoff |
-| Shared procedure | `_SHARED.md` | Available alongside role-specific protocols; specialized roles retain unique gates |
+| Shared procedure | `_SHARED.md` | Available alongside role-specific protocols; top 10 agents have unique gates |
 
 ## Safety invariants
 
@@ -63,6 +63,16 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 | Incidents require enforced lessons | verify-task |
 | Draft lessons skip evidence requirement | schema-validate |
 | Handoff blocks new tasks | start-task + pre-task-check |
+
+## Slice 5 completion
+
+| Work item | Status | Evidence |
+|-----------|--------|----------|
+| Top 10 agents de-templated with unique gates | Complete | `.claude/agents/01-*.md` through `10-*.md` |
+| Top 10 skills have unique procedures | Complete | `.claude/skills/benchmarking/` through `.claude/skills/production-readiness/` |
+| Full lifecycle E2E fixture | Complete | `test/e2e/lifecycle.test.mjs` |
+| Decision records and schema | Complete | `src/cli.mjs`, `core/schemas/decision.schema.json` |
+| Capability audit matrix | Complete | `docs/audit.md` |
 
 ## Known gaps (future)
 

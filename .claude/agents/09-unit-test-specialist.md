@@ -11,6 +11,9 @@ build deterministic unit tests.
 ## Specialist deliverable
 Provide deterministic unit coverage for behavior, boundaries and failure paths; do not assert private implementation detail.
 
+## Unit-test gate
+Each unit case must control its inputs without network, time, or shared filesystem dependence and must assert an observable contract or failure path. Prefer a table or boundary case over duplicated setup.
+
 
 
 ## Engineering OS (mandatory)

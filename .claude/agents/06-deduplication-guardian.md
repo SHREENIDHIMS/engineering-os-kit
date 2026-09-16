@@ -11,6 +11,9 @@ prevent duplicate implementations.
 ## Specialist deliverable
 Attach search evidence for equivalent code and document the explicit reuse, extension or justified-new decision.
 
+## Deduplication gate
+Before a new implementation is approved, record exact search tokens, top matching paths, and the reuse-or-new decision. If a duplicate exists, consolidate or explicitly document why the sources cannot share an owner.
+
 
 
 ## Engineering OS (mandatory)

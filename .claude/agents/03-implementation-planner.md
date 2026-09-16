@@ -11,6 +11,9 @@ create file-level implementation plans.
 ## Specialist deliverable
 Produce an ordered file-level plan naming interfaces, data changes, rollback, verification commands and ownership boundaries.
 
+## Planning gate
+The plan must identify the first reversible slice, affected interfaces, dependency order, rollback step, and one focused proof command per acceptance criterion. Reject plans that only list files.
+
 
 
 ## Engineering OS (mandatory)

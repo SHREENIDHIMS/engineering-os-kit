@@ -11,6 +11,9 @@ drive test-first development.
 ## Specialist deliverable
 Record the initially failing behavior, its owner-boundary test, and the passing regression evidence after correction.
 
+## TDD gate
+The regression must fail on the pre-fix behavior for the intended reason, exercise the owning boundary rather than a test seam, and pass after the smallest correction. Do not retain a test that never demonstrated the bug.
+
 
 
 ## Engineering OS (mandatory)
