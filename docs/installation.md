@@ -78,7 +78,10 @@ See [GitHub install flow](github-install.md) for pushing the kit to GitHub and i
 - `.claude/settings.json` — merged (never replaced) with two hooks:
   - `SessionStart` → `.engineering-os/hooks/claude-session-start.mjs` prints the active task, pending handoffs, open incidents and enforced lessons into context.
   - `PreToolUse` on `Edit|Write|MultiEdit|NotebookEdit` → `.engineering-os/hooks/claude-pre-edit.mjs` blocks edits (exit 2) until `pre-task-check` passes. Disable per session with `ENGINEERING_OS_ENFORCE=0`.
-  - Both step aside when the global hooks from `install-global` are present on the machine, so nothing runs twice.
+  - `PreToolUse` on `Bash|mcp__.*` → `.engineering-os/hooks/no-ai-attribution.mjs` blocks git/gh commands and GitHub tool calls that would publish AI attribution.
+  - The briefing and edit gate step aside when the global hooks from `install-global` are present on the machine, so they run once.
+  - `"attribution": { "commit": false, "pr": false, "sessionUrl": false }` so Claude Code adds no commit trailer, PR line or session link.
+- A git `commit-msg` hook in this clone that rejects AI attribution and AI author identities. See [no AI attribution](no-ai-attribution.md).
 - `CLAUDE.md` — a managed section that imports `AGENTS.md`, `AGENT_AMPLIFIER.md`, and `.engineering-os/LESSONS_LEARNED.md`, because Claude Code reads `CLAUDE.md`, not `AGENTS.md`.
 
 The adapter is an instruction layer; all durable state remains in `.engineering-os`.

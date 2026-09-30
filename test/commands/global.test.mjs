@@ -22,6 +22,10 @@ function cliJson(...args) {
   return JSON.parse(execFileSync(process.execPath, [cli, ...args], { encoding: 'utf8' }));
 }
 
+function claudeMdBeforeCheck(dir) {
+  return readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8');
+}
+
 function hook(dir, name, projectDir, extraEnv = {}) {
   return spawnSync(process.execPath, [path.join(dir, 'engineering-os', 'hooks', name)], {
     encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: dir, CLAUDE_PROJECT_DIR: projectDir, ...extraEnv }
@@ -51,7 +55,10 @@ test('install-global installs the harness and merges settings without losing exi
   assert.equal(settings.model, 'opus');
   assert.equal(settings.hooks.Stop.length, 1);
   assert.equal(settings.hooks.SessionStart.length, 1);
-  assert.equal(settings.hooks.PreToolUse.length, 1);
+  assert.equal(settings.hooks.PreToolUse.length, 2);
+  assert.deepEqual(settings.attribution, { commit: false, pr: false, sessionUrl: false });
+  assert.equal(existsSync(path.join(dir, 'engineering-os', 'hooks', 'global-no-ai-attribution.mjs')), true);
+  assert.match(claudeMdBeforeCheck(dir), /No AI attribution/);
   const claudeMd = readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8');
   assert.match(claudeMd, /^# my rules/);
   assert.match(claudeMd, /Engineering OS \(global\)/);
@@ -178,6 +185,7 @@ test('uninstall-global removes only what was installed and keeps backups and oth
   assert.equal(existsSync(path.join(dir, 'agents', 'mine.md')), true);
   assert.equal(existsSync(path.join(dir, 'agents', 'added-later.md')), true);
   assert.equal(existsSync(path.join(dir, 'skills')), false);
-  assert.deepEqual(JSON.parse(readFileSync(path.join(dir, 'settings.json'), 'utf8')), { model: 'opus' });
+  // Hooks are removed; attribution stays off on purpose so the rule keeps applying.
+  assert.deepEqual(JSON.parse(readFileSync(path.join(dir, 'settings.json'), 'utf8')), { model: 'opus', attribution: { commit: false, pr: false, sessionUrl: false } });
   assert.equal(readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), '# my rules\n');
 });

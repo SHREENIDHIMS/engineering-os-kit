@@ -2,13 +2,19 @@ name: Engineering OS
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   push:
+
+permissions:
+  contents: read
 
 jobs:
   engineering-os:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -16,3 +22,23 @@ jobs:
         run: node scripts/engineering-os.mjs check-project-safety
       - name: Verify no tasks stuck in handoff without acceptance
         run: node scripts/engineering-os.mjs pre-task-check --allow-no-active-task
+      - name: No AI attribution in commits or PR text
+        # Untrusted PR text is passed through env vars, never interpolated into the script.
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_TEXT: ${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            TEXT_ARGS=()
+            if [ -n "${PR_TEXT// /}" ]; then TEXT_ARGS=(--text "$PR_TEXT"); fi
+            node scripts/engineering-os.mjs check-attribution --range "$PR_BASE..$PR_HEAD" "${TEXT_ARGS[@]}"
+          elif [ -n "$BEFORE" ] && ! echo "$BEFORE" | grep -qE '^0+$' && git cat-file -e "$BEFORE" 2>/dev/null; then
+            node scripts/engineering-os.mjs check-attribution --range "$BEFORE..$SHA"
+          else
+            node scripts/engineering-os.mjs check-attribution --range "$SHA" --max-count 1
+          fi

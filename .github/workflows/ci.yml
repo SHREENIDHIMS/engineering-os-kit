@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -25,6 +26,27 @@ jobs:
       - run: npm test
       - run: npm run check
       - run: node src/cli.mjs check-project-safety --target .
+
+  attribution:
+    # The kit's own history, PR title and PR body must carry no AI attribution.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check commits and PR text
+        env:
+          PR_TEXT: ${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "${PR_TEXT// /}" ]; then
+            node src/cli.mjs check-attribution --range "${PR_HEAD:-HEAD}" --text "$PR_TEXT"
+          else
+            node src/cli.mjs check-attribution --range HEAD
+          fi
 
   smoke:
     # Installs the kit the way a user would, on every OS, and requires doctor to report healthy.
@@ -50,6 +72,8 @@ jobs:
           export CLAUDE_CONFIG_DIR="$WORK/home/.claude"
           git init -q "$WORK/app"
           cd "$WORK/app"
+          git config user.name "Smoke Test"
+          git config user.email "smoke@example.com"
           node "$KIT/src/cli.mjs" init-project --target . > /dev/null
           if node .engineering-os/hooks/claude-pre-edit.mjs; then echo "gate should block without a task"; exit 1; fi
           node scripts/engineering-os.mjs start-task --title smoke --owner ci --acceptance ok > /dev/null

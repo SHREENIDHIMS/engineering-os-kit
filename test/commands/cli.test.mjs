@@ -183,7 +183,9 @@ test('init-project wires Claude Code hooks, CLAUDE.md and .gitignore without clo
   run(root, 'init-project');
   const settings = JSON.parse(readFileSync(path.join(root, '.claude', 'settings.json'), 'utf8'));
   assert.deepEqual(settings.permissions.allow, ['Bash(ls)']);
-  assert.equal(settings.hooks.PreToolUse.length, 1);
+  assert.equal(settings.hooks.PreToolUse.length, 2);
+  assert.ok(settings.hooks.PreToolUse.some((entry) => entry.matcher === 'Bash|mcp__.*' && entry.hooks[0].command.includes('no-ai-attribution.mjs')));
+  assert.deepEqual(settings.attribution, { commit: false, pr: false, sessionUrl: false });
   assert.equal(settings.hooks.SessionStart.length, 1);
   const claudeMd = readFileSync(path.join(root, 'CLAUDE.md'), 'utf8');
   assert.match(claudeMd, /Existing Claude rules/);

@@ -10,5 +10,8 @@
 - `adapters/claude-code/global-hooks/`: machine-wide hooks installed into `~/.claude` by `install-global`.
 - `docs/agent-harness/AGENT_MATRIX.md`: agent responsibility map.
 
+## Attribution rule
+No AI attribution in Git or on GitHub. See `docs/no-ai-attribution.md` for the rule and every layer that enforces it.
+
 ## Installation rule
 Do not copy this over an existing harness blindly. Run the auditor/cartographer first, then merge only missing capabilities. Third-party repositories are references unless explicitly approved as runtime dependencies.

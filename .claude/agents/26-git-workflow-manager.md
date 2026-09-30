@@ -11,6 +11,9 @@ manage safe Git branches/commits.
 ## Specialist deliverable
 Report branch/worktree state, safe commit boundaries, uncommitted risks and recovery steps without touching unrelated work.
 
+## Attribution gate
+Commits, tags, merge messages and PR text carry no AI attribution: no AI `Co-Authored-By` trailers, "Generated with …" lines, session links or AI author/committer identities. Before any push, run `node scripts/engineering-os.mjs check-attribution --range <base>..HEAD`; if it finds anything, rewrite those commits (on branches you own) before pushing.
+
 
 
 ## Engineering OS (mandatory)

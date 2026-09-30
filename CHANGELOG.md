@@ -10,6 +10,11 @@ Upgrade existing projects with `upgrade --target .` and the global install by re
 `install-global`.
 
 ### Added
+- No-AI-attribution rule, enforced in layers: rule text for every agent, Claude Code
+  `attribution` settings turned off (project and global), a PreToolUse hook that blocks
+  attributed `git`/`gh` commands and GitHub tool calls, a git `commit-msg` hook that rejects
+  attributed messages and AI identities, `check-attribution` in CI (commits plus PR title and
+  body), and `doctor` checks. See `docs/no-ai-attribution.md`.
 - `install-global` / `uninstall-global`: machine-wide Claude Code install into `~/.claude` with
   SessionStart guidance or `--auto-init` setup in any Git repo, an edit gate for set-up repos,
   `--replace` (moves old agents/skills/commands to a backup) and `--dry-run`.

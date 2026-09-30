@@ -7,6 +7,12 @@ and exact source-level handoffs without replacing a project's existing tools.
 Requirements: Node.js 20+, Git. No runtime dependencies. Tested on Linux, macOS and Windows.
 Licensed under [MIT](LICENSE). See the [changelog](CHANGELOG.md).
 
+**No AI attribution.** Every install enforces one rule: nothing in Git history
+or on GitHub (commits, author identity, tags, merges, PRs, comments, releases)
+may credit or mention an AI tool, agent or provider. It is enforced by rule
+text, Claude Code settings, a Claude hook, a git `commit-msg` hook, CI and
+`doctor` — see [no AI attribution](docs/no-ai-attribution.md).
+
 There are two ways to install it, and they work together:
 
 | Mode | Command | What you get |
@@ -61,6 +67,7 @@ This installs the full harness:
 | `.claude/agent-shared/`, `.claude/ROLE_PROTOCOLS.md` | agent authoring templates and role evidence rules |
 | `.github/workflows/engineering-os.yml` | CI record validation |
 | `.gitignore` (managed section) | ignores lock, temp and backup files |
+| `.git/hooks/commit-msg` (this clone) | rejects AI attribution and AI author identities in commits |
 
 Existing files are never replaced; managed sections are appended once. Options:
 
@@ -88,6 +95,7 @@ node scripts/engineering-os.mjs start-task --title "Feature" --owner you --accep
 node scripts/engineering-os.mjs record-evidence --command "npm test" --exit-code 0 --summary "tests pass" --owner you
 node scripts/engineering-os.mjs update-task --task TASK-... --locations "src/app.js:12" --evidence EVD-...
 node scripts/engineering-os.mjs verify-task --task TASK-...
+node scripts/engineering-os.mjs check-attribution --range main..HEAD    # before pushing
 ```
 
 A task left active by a crashed or closed session is flagged as stale after 24
@@ -141,6 +149,7 @@ npx --yes github:shreenidhims/engineering-os-kit#v0.2.0 init-project --target .
 
 - [Installation](docs/installation.md) and [GitHub install flow](docs/github-install.md)
 - [Global install](docs/global-install.md)
+- [No AI attribution](docs/no-ai-attribution.md)
 - [Operating model](docs/operating-model.md) and [lifecycle policy](core/policies/lifecycle.md)
 - [Design specification](docs/superpowers/specs/2026-09-16-engineering-os-design.md)
 - [Capability audit](docs/audit.md)

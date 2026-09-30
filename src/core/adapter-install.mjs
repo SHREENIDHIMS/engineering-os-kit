@@ -3,6 +3,8 @@ import path from 'node:path';
 import { osDirectory } from './storage.mjs';
 import { launcherPs1, launcherScript } from './project-launcher.mjs';
 import { kitRoot, kitSource, samePath } from './kit-source.mjs';
+import { ruleText, turnAttributionOff } from './attribution.mjs';
+import { spawnSync } from 'node:child_process';
 
 // Everything below is kit-owned: `upgrade` (force) overwrites it. Project records,
 // memory files (INDEX/MISTAKES/LESSONS_LEARNED) and user-added agents/skills are never touched.
@@ -33,12 +35,15 @@ function removeLegacyPaths(root, apply) {
   });
 }
 
-const hookFiles = ['pre-task.ps1', 'pre-task.sh', 'claude-pre-edit.mjs', 'claude-session-start.mjs', 'defer-to-global.mjs'];
+const hookFiles = ['pre-task.ps1', 'pre-task.sh', 'claude-pre-edit.mjs', 'claude-session-start.mjs', 'defer-to-global.mjs', 'no-ai-attribution.mjs', 'commit-msg.mjs'];
 
 const hookMarker = '.engineering-os/hooks/claude-';
 const claudeHooks = {
   SessionStart: [{ hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.engineering-os/hooks/claude-session-start.mjs"' }] }],
-  PreToolUse: [{ matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.engineering-os/hooks/claude-pre-edit.mjs"' }] }]
+  PreToolUse: [
+    { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.engineering-os/hooks/claude-pre-edit.mjs"' }] },
+    { matcher: 'Bash|mcp__.*', hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.engineering-os/hooks/no-ai-attribution.mjs"' }] }
+  ]
 };
 
 const managedStart = '# engineering-os:managed:start';
@@ -47,7 +52,7 @@ const gitignoreBlock = `${managedStart}\n.engineering-os/state/*.lock\n.engineer
 
 const claudeMdStart = '<!-- engineering-os:managed:start -->';
 const claudeMdEnd = '<!-- engineering-os:managed:end -->';
-const claudeMdBlock = `${claudeMdStart}\n## Engineering OS\n\nThis project uses Engineering OS. Follow the project contract and orchestration rules:\n\n@AGENTS.md\n@AGENT_AMPLIFIER.md\n@.engineering-os/LESSONS_LEARNED.md\n${claudeMdEnd}\n`;
+const claudeMdBlock = `${claudeMdStart}\n## Engineering OS\n\n${ruleText}\n\nThis project uses Engineering OS. Follow the project contract and orchestration rules:\n\n@AGENTS.md\n@AGENT_AMPLIFIER.md\n@.engineering-os/LESSONS_LEARNED.md\n${claudeMdEnd}\n`;
 
 function copyTree(source, destination, { apply, force = false, replace = false }) {
   if (!existsSync(source)) return { source, destination, status: 'missing-source' };
@@ -147,7 +152,9 @@ export function installClaudeMd(root, { write = false, force = false } = {}) {
   return upsertManagedBlock(root, 'CLAUDE.md', claudeMdStart, claudeMdEnd, claudeMdBlock, { apply: write, force });
 }
 
-// Merges Engineering OS hooks into .claude/settings.json without touching unrelated settings.
+// Merges Engineering OS hooks into .claude/settings.json and turns Claude Code commit/PR
+// attribution off, without touching unrelated settings. Hooks are matched by command, so an
+// upgrade adds hooks introduced by newer kits to projects that already have older ones.
 export function installClaudeSettings(root, { write = false } = {}) {
   const destination = path.join(root, '.claude', 'settings.json');
   let settings = {};
@@ -159,16 +166,49 @@ export function installClaudeSettings(root, { write = false } = {}) {
   const added = [];
   for (const [event, entries] of Object.entries(claudeHooks)) {
     const existing = settings.hooks[event] ?? [];
-    const installed = existing.some((entry) => (entry.hooks ?? []).some((hook) => String(hook.command ?? '').includes(hookMarker)));
-    if (installed) continue;
-    settings.hooks[event] = [...existing, ...entries];
+    const commands = new Set(existing.flatMap((entry) => (entry.hooks ?? []).map((hook) => hook.command)));
+    const missing = entries.filter((entry) => !entry.hooks.every((hook) => commands.has(hook.command)));
+    if (missing.length === 0) continue;
+    settings.hooks[event] = [...existing, ...missing];
     added.push(event);
   }
-  if (added.length === 0) return { path: destination, status: 'present' };
-  if (!write) return { path: destination, status: 'would-add', events: added };
+  const attributionChanged = turnAttributionOff(settings);
+  if (added.length === 0 && !attributionChanged) return { path: destination, status: 'present' };
+  if (!write) return { path: destination, status: 'would-add', events: added, attributionOff: attributionChanged };
   mkdirSync(path.dirname(destination), { recursive: true });
   writeFileSync(destination, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
-  return { path: destination, status: 'added', events: added };
+  return { path: destination, status: 'added', events: added, attributionOff: attributionChanged };
+}
+
+export const commitMsgMarker = '# engineering-os:commit-msg';
+const commitMsgWrapper = `#!/bin/sh
+${commitMsgMarker}
+# Rejects AI attribution in commit messages and AI author/committer identities.
+# Installed by Engineering OS; the logic lives in .engineering-os/hooks/commit-msg.mjs.
+ROOT="$(git rev-parse --show-toplevel)"
+exec node "$ROOT/.engineering-os/hooks/commit-msg.mjs" "$1"
+`;
+
+// Installs the git commit-msg hook in this clone's hooks directory. Never replaces a hook the
+// project already has, and skips repos that use core.hooksPath (a shared hooks manager).
+export function installCommitMsgHook(root, { write = false, force = false } = {}) {
+  const hooksPath = spawnSync('git', ['-C', root, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8' });
+  if (hooksPath.status === 0 && hooksPath.stdout.trim()) {
+    return { status: 'skipped-core-hooksPath', detail: `core.hooksPath is ${hooksPath.stdout.trim()}; add .engineering-os/hooks/commit-msg.mjs to that hook manually.` };
+  }
+  const gitPath = spawnSync('git', ['-C', root, 'rev-parse', '--git-path', 'hooks/commit-msg'], { encoding: 'utf8' });
+  if (gitPath.status !== 0) return { status: 'skipped-no-git-dir' };
+  const destination = path.resolve(root, gitPath.stdout.trim());
+  if (existsSync(destination)) {
+    const current = readFileSync(destination, 'utf8');
+    if (!current.includes(commitMsgMarker)) return { path: destination, status: 'skipped-existing-hook', detail: 'A commit-msg hook already exists; call .engineering-os/hooks/commit-msg.mjs "$1" from it.' };
+    if (!force || current === commitMsgWrapper) return { path: destination, status: 'present' };
+  }
+  if (!write) return { path: destination, status: 'would-add' };
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, commitMsgWrapper, 'utf8');
+  try { chmodSync(destination, 0o755); } catch { /* windows */ }
+  return { path: destination, status: existsSync(destination) ? 'added' : 'failed' };
 }
 
 export function installAdapter(root, adapter, { write = false, force = false, replace = false, version = '0.1.0', installedFrom = null } = {}) {
@@ -178,6 +218,7 @@ export function installAdapter(root, adapter, { write = false, force = false, re
   const hooks = installHooks(root, { write, force });
   const ci = installTargetCi(root, { write, force });
   const gitignore = installGitignore(root, { write, force });
+  const commitMsg = installCommitMsgHook(root, { write, force });
 
   let adapterItems = [];
   let claude;
@@ -205,5 +246,5 @@ export function installAdapter(root, adapter, { write = false, force = false, re
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   }
 
-  return { adapter: adapter ?? 'none', configPath, config: write ? config : undefined, backup, vendor, launcher, hooks, ci, gitignore, claude, items: adapterItems };
+  return { adapter: adapter ?? 'none', configPath, config: write ? config : undefined, backup, vendor, launcher, hooks, ci, gitignore, commitMsg, claude, items: adapterItems };
 }

@@ -7,7 +7,10 @@ import { legacyPaths } from '../core/adapter-install.mjs';
 import { agentsContractStart } from '../core/agents-contract.mjs';
 import { defaultClaudeDir, globalHookMarker } from '../core/global-install.mjs';
 import { staleInfo } from '../core/stale.mjs';
+import { attributionIsOff, isAiIdentity } from '../core/attribution.mjs';
+import { commitMsgMarker } from '../core/adapter-install.mjs';
 import { collectSafetyErrors, kitVersion, print } from './shared.mjs';
+import { scanCommits } from './attribution.mjs';
 
 // `doctor`: read-only health check of the environment, the project install and the global
 // install. Every problem carries the exact command that fixes it. Exit code 1 only on `fail`;
@@ -95,16 +98,46 @@ function projectChecks(check, root, globalKitCli) {
   const gitignored = readText(path.join(root, '.gitignore')).includes('# engineering-os:managed:start');
   check('project', 'gitignore', gitignored ? 'ok' : 'warn', gitignored ? 'managed section present' : '.gitignore does not ignore lock, temp and backup files', upgradeCommand);
 
+  attributionChecks(check, root, upgradeCommand);
+
   if (config.adapter !== 'claude') return;
   const settings = readText(path.join(root, '.claude', 'settings.json'));
   const hooksWired = settings.includes('.engineering-os/hooks/claude-');
   const hookFiles = ['claude-pre-edit.mjs', 'claude-session-start.mjs', 'defer-to-global.mjs'].filter((file) => !existsSync(path.join(osDir, 'hooks', file)));
   check('project', 'claude-hooks', hooksWired && hookFiles.length === 0 ? 'ok' : 'warn',
     hooksWired && hookFiles.length === 0 ? 'SessionStart and PreToolUse hooks wired' : `${hooksWired ? '' : '.claude/settings.json has no Engineering OS hooks. '}${hookFiles.length ? `missing: ${hookFiles.join(', ')}` : ''}`.trim(), upgradeCommand);
+  const projectSettings = readJson(path.join(root, '.claude', 'settings.json'));
+  const attributionHook = settings.includes('no-ai-attribution.mjs');
+  check('project', 'attribution-off', attributionIsOff(projectSettings) && attributionHook ? 'ok' : 'warn',
+    attributionIsOff(projectSettings) && attributionHook ? 'attribution disabled and no-AI-attribution hook wired' : `${attributionIsOff(projectSettings) ? '' : 'Claude Code attribution not disabled in .claude/settings.json. '}${attributionHook ? '' : 'no-AI-attribution hook not wired.'}`.trim(), upgradeCommand);
   const claudeMd = readText(path.join(root, 'CLAUDE.md'));
   check('project', 'claude-md', claudeMd.includes('@AGENTS.md') ? 'ok' : 'warn', claudeMd.includes('@AGENTS.md') ? 'CLAUDE.md imports AGENTS.md' : 'CLAUDE.md does not import AGENTS.md, so Claude Code will not read the contract', upgradeCommand);
   const legacy = legacyPaths.filter((file) => existsSync(path.join(root, file)));
   if (legacy.length > 0) check('project', 'legacy-files', 'warn', `outdated files: ${legacy.join(', ')}`, upgradeCommand);
+}
+
+// No-AI-attribution rule: git identity, commit-msg hook and recent history.
+function attributionChecks(check, root, upgradeCommand) {
+  const [name, email] = ['user.name', 'user.email'].map((key) => spawnSync('git', ['-C', root, 'config', '--get', key], { encoding: 'utf8' }).stdout.trim());
+  const identity = `${name} <${email}>`;
+  const identityFix = 'git config user.name "Your Name" && git config user.email "you@example.com"';
+  if (!name || !email) check('project', 'git-identity', 'warn', 'no git user.name/user.email configured', identityFix);
+  else check('project', 'git-identity', isAiIdentity(identity) ? 'fail' : 'ok', `commits will be authored as ${identity}`, identityFix);
+
+  const hookPath = spawnSync('git', ['-C', root, 'rev-parse', '--git-path', 'hooks/commit-msg'], { encoding: 'utf8' }).stdout.trim();
+  const hookText = hookPath ? readText(path.resolve(root, hookPath)) : '';
+  const hooksPathSetting = spawnSync('git', ['-C', root, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).stdout.trim();
+  const wired = hookText.includes(commitMsgMarker) || hookText.includes('.engineering-os/hooks/commit-msg.mjs');
+  check('project', 'commit-msg-hook', wired ? 'ok' : 'warn', wired ? 'git commit-msg hook rejects AI attribution' : hooksPathSetting ? `core.hooksPath is ${hooksPathSetting}; the kit did not install its hook there` : 'no Engineering OS commit-msg hook in this clone',
+    hooksPathSetting || hookText ? 'Call node .engineering-os/hooks/commit-msg.mjs "$1" from your existing commit-msg hook.' : upgradeCommand);
+
+  const head = spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', 'HEAD'], { encoding: 'utf8' });
+  if (head.status !== 0) return;
+  const { commitsChecked, findings } = scanCommits(root, { range: 'HEAD', maxCount: 50 });
+  const commits = [...new Set(findings.map((item) => item.commit))];
+  check('project', 'commit-history', commits.length === 0 ? 'ok' : 'warn',
+    commits.length === 0 ? `no AI attribution in the last ${commitsChecked} commits` : `AI attribution in ${commits.length} of the last ${commitsChecked} commits: ${commits.join(', ')}`,
+    'Run check-attribution --range HEAD for details; to rewrite them see https://github.com/shreenidhims/engineering-os-kit/blob/main/docs/no-ai-attribution.md');
 }
 
 function globalChecks(check, claudeDir) {
@@ -117,12 +150,15 @@ function globalChecks(check, claudeDir) {
   }
   check('global', 'installed', 'ok', `kit ${config.version} (${config.installedFrom}), autoInit ${config.autoInit ? 'on' : 'off'}`);
   const kitCli = path.join(globalRoot, 'kit', 'src', 'cli.mjs');
-  const hooks = ['global-session-start.mjs', 'global-pre-edit.mjs', 'global-common.mjs'].filter((file) => !existsSync(path.join(globalRoot, 'hooks', file)));
+  const hooks = ['global-session-start.mjs', 'global-pre-edit.mjs', 'global-common.mjs', 'global-no-ai-attribution.mjs'].filter((file) => !existsSync(path.join(globalRoot, 'hooks', file)));
   const wired = readText(path.join(claudeDir, 'settings.json')).includes(globalHookMarker);
   const healthy = existsSync(kitCli) && hooks.length === 0 && wired;
   check('global', 'hooks', healthy ? 'ok' : 'fail',
     healthy ? 'global kit, hooks and settings.json entries present' : `${existsSync(kitCli) ? '' : 'global kit missing. '}${hooks.length ? `missing hooks: ${hooks.join(', ')}. ` : ''}${wired ? '' : 'settings.json has no global hooks.'}`.trim(), installCommand);
   if (isOlder(config.version, kitVersion())) check('global', 'version', 'warn', `global kit ${config.version} is older than this kit ${kitVersion()}`, installCommand);
+  const globalSettings = readJson(path.join(claudeDir, 'settings.json'));
+  check('global', 'attribution-off', attributionIsOff(globalSettings) ? 'ok' : 'warn',
+    attributionIsOff(globalSettings) ? 'Claude Code commit/PR attribution disabled' : 'Claude Code may add AI attribution to commits and PRs', installCommand);
   return existsSync(kitCli) ? kitCli.split(path.sep).join('/') : null;
 }
 

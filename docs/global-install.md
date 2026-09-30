@@ -36,7 +36,7 @@ and never duplicates hook entries or the `CLAUDE.md` section. Use it to upgrade.
 | `engineering-os/config.json` | `version`, `installedFrom` (`engineering-os-kit@<version> (<commit>)`), `installedAt`, `autoInit`. |
 | `engineering-os/installed-files.json` | Manifest of the agent, skill and command files copied in; `uninstall-global` removes exactly these. |
 | `agents/`, `skills/`, `commands/engineering-os/` | Kit files copied in. Files you added yourself are kept; a file with the same name as a kit file is overwritten (use `--replace` to back those up first). |
-| `settings.json` | Two hook entries appended (`SessionStart`, `PreToolUse`). Every other setting and hook is kept. Aborts without changing anything if the file is not valid JSON. |
+| `settings.json` | Hook entries appended (`SessionStart`, and `PreToolUse` for the edit gate and the no-AI-attribution check) and `attribution` set to `{ "commit": false, "pr": false, "sessionUrl": false }`. Every other setting and hook is kept. Aborts without changing anything if the file is not valid JSON. |
 | `CLAUDE.md` | One section between `<!-- engineering-os:global:start -->` and `<!-- engineering-os:global:end -->`; your own text is kept. |
 
 **Never touched:** credentials, history, `sessions/`, `projects/`, `plugins/`,
@@ -90,9 +90,9 @@ npx --yes github:shreenidhims/engineering-os-kit uninstall-global --dry-run
 npx --yes github:shreenidhims/engineering-os-kit uninstall-global
 ```
 
-Removes the files listed in the manifest, the two hook entries, the managed
+Removes the files listed in the manifest, the Engineering OS hook entries, the managed
 `CLAUDE.md` section and `engineering-os/`, then removes any folders left empty.
-Your own agents, skills, settings and text stay. Backups made by `--replace`
+Your own agents, skills, settings and text stay. The `attribution` setting stays off so the no-AI-attribution rule keeps applying; delete that key to restore Claude Code's default. Backups made by `--replace`
 are kept in `engineering-os-backups/`; restore by moving a folder back, e.g.
 `mv ~/.claude/engineering-os-backups/<timestamp>/agents ~/.claude/agents`.
 

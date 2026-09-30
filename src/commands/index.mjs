@@ -6,6 +6,7 @@ import {
 } from './records.mjs';
 import { commandAcceptHandoff, commandHandoff, commandShowHandoff } from './handoffs.mjs';
 import { commandDoctor } from './doctor.mjs';
+import { commandCheckAttribution } from './attribution.mjs';
 
 // Command registry. `help` is generated from this table, so a command added here is documented.
 export const commandTable = [
@@ -22,6 +23,7 @@ export const commandTable = [
   ['tasks', 'release-task', commandReleaseTask, 'Free an abandoned task (--task --owner --reason)'],
   ['tasks', 'pre-task-check', commandPreTaskCheck, 'Gate run before edits (--allow-no-active-task in CI)'],
   ['tasks', 'check-project-safety', commandCheckSafety, 'Validate every recorded path:line'],
+  ['tasks', 'check-attribution', commandCheckAttribution, 'Fail on AI attribution in commits (--range, --max-count, --text)'],
   ['records', 'record-evidence', commandRecordEvidence, 'Record command proof (--command --exit-code --summary --owner)'],
   ['records', 'record-incident', commandRecordIncident, 'Record a failure plus its draft lesson'],
   ['records', 'enforce-lesson', commandEnforceLesson, 'Enforce a lesson with a prevention location and evidence'],

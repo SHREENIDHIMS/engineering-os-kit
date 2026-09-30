@@ -20,6 +20,10 @@ root (auto-targets this repo).
   \`accept-handoff\`.
 - Close work only with \`verify-task\`. Free a task whose owner is gone only with
   \`release-task --reason\`, after confirming with the user.
+- No AI attribution in Git or on GitHub: commit messages, author/committer identity, tags,
+  merge messages, PR titles and bodies, comments and release notes must not credit or mention
+  an AI tool, agent, model or provider (no AI \`Co-Authored-By\` trailers, no "Generated with"
+  lines, no AI session links). Commit as the repository owner. \`check-attribution\` verifies it.
 - If anything seems misconfigured, run \`doctor\`.
 - Never write Engineering OS state outside the project Git root.
 ${agentsContractEnd}

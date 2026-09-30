@@ -17,6 +17,8 @@ function doctor(target, env = {}) {
 function repo() {
   const root = mkdtempSync(path.join(tmpdir(), 'engineering-os-doctor-'));
   execFileSync('git', ['init', '-q', root]);
+  execFileSync('git', ['-C', root, 'config', 'user.name', 'Test User']);
+  execFileSync('git', ['-C', root, 'config', 'user.email', 'test@example.com']);
   return root;
 }
 

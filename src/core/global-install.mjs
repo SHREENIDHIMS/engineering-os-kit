@@ -2,6 +2,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, r
 import os from 'node:os';
 import path from 'node:path';
 import { kitRoot, kitSource, samePath } from './kit-source.mjs';
+import { ruleText, turnAttributionOff } from './attribution.mjs';
 
 // Global (user-level) install into the Claude Code config directory, normally ~/.claude.
 //
@@ -51,6 +52,8 @@ function claudeMdBlock(kitDir) {
   return `${claudeMdStart}
 ## Engineering OS (global)
 
+${ruleText}
+
 Engineering OS is installed for every project on this machine.
 
 - In a Git repository, the SessionStart briefing says whether the project is set up.
@@ -70,7 +73,10 @@ function hookEntries(hooksDir) {
   const dir = toPosix(hooksDir);
   return {
     SessionStart: [{ hooks: [{ type: 'command', command: `node "${dir}/global-session-start.mjs"` }] }],
-    PreToolUse: [{ matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command: `node "${dir}/global-pre-edit.mjs"` }] }]
+    PreToolUse: [
+      { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command: `node "${dir}/global-pre-edit.mjs"` }] },
+      { matcher: 'Bash|mcp__.*', hooks: [{ type: 'command', command: `node "${dir}/global-no-ai-attribution.mjs"` }] }
+    ]
   };
 }
 
@@ -91,8 +97,9 @@ function mergeSettings(settingsPath, hooksDir, apply) {
     // Drop any previous Engineering OS entry so a reinstall with a new path does not duplicate it.
     settings.hooks[event] = [...(settings.hooks[event] ?? []).filter((entry) => !isOurEntry(entry)), ...entries];
   }
+  const attributionOff = turnAttributionOff(settings);
   if (apply) writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
-  return { path: settingsPath, status: apply ? 'merged' : 'would-merge', events: Object.keys(hookEntries(hooksDir)) };
+  return { path: settingsPath, status: apply ? 'merged' : 'would-merge', events: Object.keys(hookEntries(hooksDir)), attribution: attributionOff ? 'turned-off' : 'already-off' };
 }
 
 function stripManagedBlock(text) {
@@ -168,6 +175,8 @@ export function installGlobal({ claudeDir = defaultClaudeDir(), replace = false,
 
     rmSync(hooksDir, { recursive: true, force: true });
     cpSync(path.join(kitRoot, 'adapters', 'claude-code', 'global-hooks'), hooksDir, { recursive: true });
+    // Same script as the project hook; it resolves the kit at ../kit in both locations.
+    cpSync(path.join(kitRoot, 'adapters', 'claude-code', 'hooks', 'no-ai-attribution.mjs'), path.join(hooksDir, 'global-no-ai-attribution.mjs'));
 
     for (const { from, to } of harnessPlan()) {
       mkdirSync(path.join(claudeDir, to), { recursive: true });
@@ -247,6 +256,7 @@ export function uninstallGlobal({ claudeDir = defaultClaudeDir(), apply = true }
     removedFiles: removed.length,
     settings: settingsStatus,
     claudeMd: claudeMdStatus,
-    backups: existsSync(backups) ? `Kept ${backups}; restore any folder from it by moving it back.` : null
+    backups: existsSync(backups) ? `Kept ${backups}; restore any folder from it by moving it back.` : null,
+    attribution: 'left off in settings.json (the no-AI-attribution rule stays in force); remove the "attribution" key to restore Claude Code defaults'
   };
 }
