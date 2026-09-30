@@ -198,7 +198,7 @@ test('claude pre-edit hook blocks with exit 2 until a task is active', () => {
   const root = fixtureRoot();
   run(root, 'init-project');
   const hook = path.join(root, '.engineering-os', 'hooks', 'claude-pre-edit.mjs');
-  const env = { ...process.env, CLAUDE_PROJECT_DIR: root };
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: root, CLAUDE_CONFIG_DIR: mkdtempSync(path.join(tmpdir(), 'engineering-os-noglobal-')) };
   const blocked = spawnSync(process.execPath, [hook], { encoding: 'utf8', env });
   assert.equal(blocked.status, 2);
   assert.match(blocked.stderr, /No active task/);

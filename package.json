@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Portable, evidence-driven engineering workflow kit.",
+  "license": "MIT",
   "bin": {
     "engineering-os": "src/cli.mjs"
   },

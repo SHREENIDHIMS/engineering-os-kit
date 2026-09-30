@@ -4,6 +4,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shouldDeferToGlobal } from './defer-to-global.mjs';
+
+if (shouldDeferToGlobal()) process.exit(0);
 
 const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const osRoot = path.join(projectRoot, '.engineering-os');
@@ -29,7 +32,16 @@ const openIncidents = records('incidents').filter((incident) => incident.status 
 
 const lines = ['## Engineering OS briefing'];
 if (handoff) lines.push(`- Task ${handoff.id} ("${handoff.title}") awaits handoff acceptance: run \`node scripts/engineering-os.mjs show-handoff --task ${handoff.id}\` then \`accept-handoff\`.`);
-if (active) lines.push(`- Active task: ${active.id} "${active.title}" owned by ${active.owner}.`);
+if (active) {
+  lines.push(`- Active task: ${active.id} "${active.title}" owned by ${active.owner}.`);
+  let staleHours = 24;
+  try { staleHours = Number(JSON.parse(readFileSync(path.join(osRoot, 'config.json'), 'utf8')).staleTaskHours) || 24; } catch { /* keep default */ }
+  const lastUpdate = Date.parse(active.updatedAt ?? active.createdAt ?? '');
+  const idleHours = Number.isNaN(lastUpdate) ? 0 : (Date.now() - lastUpdate) / 3_600_000;
+  if (idleHours >= staleHours) {
+    lines.push(`- WARNING: ${active.id} has not been updated for ${Math.round(idleHours)}h. If its owner is gone, ask the user before running \`node scripts/engineering-os.mjs release-task --task ${active.id} --owner <you> --reason "..."\`.`);
+  }
+}
 if (!active && !handoff) lines.push('- No active task. Edits are blocked until you run `node scripts/engineering-os.mjs start-task --title "..." --owner "..." --acceptance "..."`.');
 if (openIncidents.length > 0) lines.push(`- Open incidents: ${openIncidents.map((incident) => incident.id).join(', ')}.`);
 if (enforced.length > 0) {

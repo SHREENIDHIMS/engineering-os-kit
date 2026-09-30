@@ -1,10 +1,8 @@
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { osDirectory } from './storage.mjs';
 import { launcherPs1, launcherScript } from './project-launcher.mjs';
-
-const kitRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+import { kitRoot, kitSource } from './kit-source.mjs';
 
 // Everything below is kit-owned: `upgrade` (force) overwrites it. Project records,
 // memory files (INDEX/MISTAKES/LESSONS_LEARNED) and user-added agents/skills are never touched.
@@ -12,6 +10,7 @@ const adapterSources = {
   claude: [
     { from: '.claude/agents', to: '.claude/agents' },
     { from: '.claude/skills', to: '.claude/skills' },
+    { from: '.claude/agent-shared', to: '.claude/agent-shared' },
     { from: '.claude/ROLE_PROTOCOLS.md', to: '.claude/ROLE_PROTOCOLS.md' },
     { from: 'adapters/claude-code/commands', to: '.claude/commands/engineering-os' },
     { from: 'AGENT_AMPLIFIER.md', to: 'AGENT_AMPLIFIER.md' }
@@ -24,7 +23,17 @@ const vendorPaths = [
   { from: 'core/policies', to: '.engineering-os/policies' }
 ];
 
-const hookFiles = ['pre-task.ps1', 'pre-task.sh', 'claude-pre-edit.mjs', 'claude-session-start.mjs'];
+// Files older kit versions installed in places they no longer belong; `upgrade` removes them.
+export const legacyPaths = ['.claude/agents/_BASE.md', '.claude/agents/_SHARED.md', '.claude/agents/_SHARED_SNIPPET.md'];
+
+function removeLegacyPaths(root, apply) {
+  return legacyPaths.filter((relative) => existsSync(path.join(root, relative))).map((relative) => {
+    if (apply) rmSync(path.join(root, relative), { force: true });
+    return { path: path.join(root, relative), status: apply ? 'removed' : 'would-remove' };
+  });
+}
+
+const hookFiles = ['pre-task.ps1', 'pre-task.sh', 'claude-pre-edit.mjs', 'claude-session-start.mjs', 'defer-to-global.mjs'];
 
 const hookMarker = '.engineering-os/hooks/claude-';
 const claudeHooks = {
@@ -34,10 +43,11 @@ const claudeHooks = {
 
 const managedStart = '# engineering-os:managed:start';
 const managedEnd = '# engineering-os:managed:end';
-const gitignoreBlock = `${managedStart}\n.engineering-os/state/*.lock\n.engineering-os/evidence/*.local.json\n.engineering-os/**/*.tmp\n${managedEnd}\n`;
+const gitignoreBlock = `${managedStart}\n.engineering-os/state/*.lock\n.engineering-os/evidence/*.local.json\n.engineering-os/**/*.tmp\n.engineering-os/backups/\n${managedEnd}\n`;
 
 const claudeMdStart = '<!-- engineering-os:managed:start -->';
-const claudeMdBlock = `${claudeMdStart}\n## Engineering OS\n\nThis project uses Engineering OS. Follow the project contract and orchestration rules:\n\n@AGENTS.md\n@AGENT_AMPLIFIER.md\n@.engineering-os/LESSONS_LEARNED.md\n<!-- engineering-os:managed:end -->\n`;
+const claudeMdEnd = '<!-- engineering-os:managed:end -->';
+const claudeMdBlock = `${claudeMdStart}\n## Engineering OS\n\nThis project uses Engineering OS. Follow the project contract and orchestration rules:\n\n@AGENTS.md\n@AGENT_AMPLIFIER.md\n@.engineering-os/LESSONS_LEARNED.md\n${claudeMdEnd}\n`;
 
 function copyTree(source, destination, { apply, force = false, replace = false }) {
   if (!existsSync(source)) return { source, destination, status: 'missing-source' };
@@ -64,14 +74,40 @@ function writeFile(root, relativePath, content, { apply, force = false }) {
   return { path: destination, status: present ? 'updated' : 'added' };
 }
 
-function appendManagedBlock(root, relativePath, marker, block, apply) {
+// Appends a delimited block once. With force (upgrade), an outdated block is replaced in place;
+// text outside the markers is never changed.
+function upsertManagedBlock(root, relativePath, start, end, block, { apply, force = false }) {
   const destination = path.join(root, relativePath);
   const current = existsSync(destination) ? readFileSync(destination, 'utf8') : '';
-  if (current.includes(marker)) return { path: destination, status: 'present' };
+  const startIndex = current.indexOf(start);
+  if (startIndex !== -1) {
+    const endIndex = current.indexOf(end, startIndex);
+    if (!force || endIndex === -1) return { path: destination, status: 'present' };
+    const lineEnd = current.indexOf('\n', endIndex);
+    const stop = lineEnd === -1 ? current.length : lineEnd + 1;
+    if (current.slice(startIndex, stop) === block) return { path: destination, status: 'present' };
+    if (!apply) return { path: destination, status: 'would-update' };
+    writeFileSync(destination, `${current.slice(0, startIndex)}${block}${current.slice(stop)}`, 'utf8');
+    return { path: destination, status: 'updated' };
+  }
   if (!apply) return { path: destination, status: 'would-add' };
   const separator = current.length === 0 ? '' : current.endsWith('\n') ? '\n' : '\n\n';
   writeFileSync(destination, `${current}${separator}${block}`, 'utf8');
   return { path: destination, status: 'added' };
+}
+
+// `init-project --replace`: moves an existing project harness (.claude/agents, skills, commands)
+// into .engineering-os/backups/claude-<timestamp>/ before the kit's copy is installed.
+// settings.json, settings.local.json and everything else in .claude/ stay in place.
+export function backupProjectHarness(root, { write = false } = {}) {
+  const present = ['agents', 'skills', 'commands'].filter((name) => existsSync(path.join(root, '.claude', name)));
+  if (present.length === 0) return { status: 'nothing-to-replace', moved: [] };
+  const backupDir = path.join(osDirectory(root), 'backups', `claude-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+  if (write) {
+    mkdirSync(backupDir, { recursive: true });
+    for (const name of present) renameSync(path.join(root, '.claude', name), path.join(backupDir, name));
+  }
+  return { status: write ? 'moved' : 'would-move', backupDir, moved: present.map((name) => `.claude/${name}`) };
 }
 
 export function vendorKit(root, { write = false, force = false, version = '0.1.0' } = {}) {
@@ -79,6 +115,8 @@ export function vendorKit(root, { write = false, force = false, version = '0.1.0
     copyTree(path.join(kitRoot, from), path.join(root, to), { apply: write, force, replace }));
   const kitPackage = `${JSON.stringify({ name: 'engineering-os-kit-vendored', version, type: 'module' }, null, 2)}\n`;
   items.push(writeFile(root, '.engineering-os/kit/package.json', kitPackage, { apply: write, force }));
+  const source = kitSource();
+  items.push(writeFile(root, '.engineering-os/kit/kit-source.json', `${JSON.stringify({ version: source.version, commit: source.commit }, null, 2)}\n`, { apply: write, force }));
   return items;
 }
 
@@ -101,12 +139,12 @@ export function installTargetCi(root, { write = false, force = false } = {}) {
   return copyTree(path.join(kitRoot, 'ci/engineering-os-target.yml'), path.join(root, '.github/workflows/engineering-os.yml'), { apply: write, force });
 }
 
-export function installGitignore(root, { write = false } = {}) {
-  return appendManagedBlock(root, '.gitignore', managedStart, gitignoreBlock, write);
+export function installGitignore(root, { write = false, force = false } = {}) {
+  return upsertManagedBlock(root, '.gitignore', managedStart, managedEnd, gitignoreBlock, { apply: write, force });
 }
 
-export function installClaudeMd(root, { write = false } = {}) {
-  return appendManagedBlock(root, 'CLAUDE.md', claudeMdStart, claudeMdBlock, write);
+export function installClaudeMd(root, { write = false, force = false } = {}) {
+  return upsertManagedBlock(root, 'CLAUDE.md', claudeMdStart, claudeMdEnd, claudeMdBlock, { apply: write, force });
 }
 
 // Merges Engineering OS hooks into .claude/settings.json without touching unrelated settings.
@@ -133,12 +171,13 @@ export function installClaudeSettings(root, { write = false } = {}) {
   return { path: destination, status: 'added', events: added };
 }
 
-export function installAdapter(root, adapter, { write = false, force = false, version = '0.1.0', installedFrom = null } = {}) {
+export function installAdapter(root, adapter, { write = false, force = false, replace = false, version = '0.1.0', installedFrom = null } = {}) {
+  const backup = replace && adapter === 'claude' ? backupProjectHarness(root, { write }) : undefined;
   const vendor = vendorKit(root, { write, force, version });
   const launcher = installProjectLauncher(root, { write, force });
   const hooks = installHooks(root, { write, force });
   const ci = installTargetCi(root, { write, force });
-  const gitignore = installGitignore(root, { write });
+  const gitignore = installGitignore(root, { write, force });
 
   let adapterItems = [];
   let claude;
@@ -146,7 +185,8 @@ export function installAdapter(root, adapter, { write = false, force = false, ve
     const plan = adapterSources[adapter];
     if (!plan) throw new Error(`Unknown adapter: ${adapter}. Use claude or none.`);
     adapterItems = plan.map(({ from, to }) => copyTree(path.join(kitRoot, from), path.join(root, to), { apply: write, force }));
-    if (adapter === 'claude') claude = { settings: installClaudeSettings(root, { write }), claudeMd: installClaudeMd(root, { write }) };
+    if (force) adapterItems.push(...removeLegacyPaths(root, write));
+    if (adapter === 'claude') claude = { settings: installClaudeSettings(root, { write }), claudeMd: installClaudeMd(root, { write, force }) };
   }
 
   const configPath = path.join(osDirectory(root), 'config.json');
@@ -158,12 +198,12 @@ export function installAdapter(root, adapter, { write = false, force = false, ve
     kitPath: '.engineering-os/kit',
     cli: 'scripts/engineering-os.mjs',
     projectRoot: '.',
-    installedFrom: installedFrom ?? kitRoot
+    installedFrom: installedFrom ?? kitSource().label
   };
   if (write) {
     mkdirSync(path.dirname(configPath), { recursive: true });
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   }
 
-  return { adapter: adapter ?? 'none', configPath, config: write ? config : undefined, vendor, launcher, hooks, ci, gitignore, claude, items: adapterItems };
+  return { adapter: adapter ?? 'none', configPath, config: write ? config : undefined, backup, vendor, launcher, hooks, ci, gitignore, claude, items: adapterItems };
 }

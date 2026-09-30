@@ -5,8 +5,9 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shouldDeferToGlobal } from './defer-to-global.mjs';
 
-if (process.env.ENGINEERING_OS_ENFORCE === '0') process.exit(0);
+if (process.env.ENGINEERING_OS_ENFORCE === '0' || shouldDeferToGlobal()) process.exit(0);
 
 const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const launcher = path.join(projectRoot, 'scripts', 'engineering-os.mjs');

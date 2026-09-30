@@ -10,6 +10,9 @@ import { validateHandoff, validateLesson, validateTask } from './core/validate.m
 import { syncProjectIndex } from './core/sync-index.mjs';
 import { installAdapter } from './core/adapter-install.mjs';
 import { parseList, parseLocations } from './core/parse-locations.mjs';
+import { releaseHint, staleInfo } from './core/stale.mjs';
+import { kitSource } from './core/kit-source.mjs';
+import { installGlobal, uninstallGlobal } from './core/global-install.mjs';
 
 const managedHeader = '<!-- engineering-os:managed:start -->';
 const managedFooter = '<!-- engineering-os:managed:end -->';
@@ -22,7 +25,7 @@ function parseArguments(values) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (!value.startsWith('--')) result._.push(value);
-    else if (value === '--apply' || value === '--allow-no-active-task') {
+    else if (['--apply', '--allow-no-active-task', '--replace', '--auto-init', '--dry-run'].includes(value)) {
       result[value.slice(2)] = true;
     }
     else {
@@ -131,7 +134,7 @@ function commandBootstrap(args) {
   const missing = initializeStore(root, { write: apply });
   const agents = ensureManagedAgents(root, apply);
   const projectFiles = initializeProjectFiles(root, apply);
-  const adapter = installAdapter(root, args.adapter ?? 'none', { write: apply, force: Boolean(args.force), version: kitVersion(), installedFrom: kitRootPath() });
+  const adapter = installAdapter(root, args.adapter ?? 'none', { write: apply, force: Boolean(args.force), replace: Boolean(args.replace), version: kitVersion(), installedFrom: kitSource().label });
   print({ root, mode: apply ? 'applied' : 'dry-run', missingDirectories: missing, agents, projectFiles, adapter });
 }
 
@@ -145,7 +148,10 @@ function commandStartTask(args) {
   const acceptanceCriteria = (args.acceptance ?? '').split('|').map((value) => value.trim()).filter(Boolean);
   if (acceptanceCriteria.length === 0) throw new Error('--acceptance is required with at least one criterion.');
   const active = listRecords(root, 'tasks').find((task) => task.status === 'active');
-  if (active) throw new Error(`Active task lock exists: ${active.id} owned by ${active.owner}. Create a handoff or close it first.`);
+  if (active) {
+    const { ageHours } = staleInfo(root, active);
+    throw new Error(`Active task lock exists: ${active.id} owned by ${active.owner}, last updated ${ageHours ?? '?'}h ago. Create a handoff or close it first. ${releaseHint(active)}`);
+  }
   const handoffPending = listRecords(root, 'tasks').find((task) => task.status === 'handoff');
   if (handoffPending) throw new Error(`Task awaiting handoff acceptance: ${handoffPending.id}. Run accept-handoff before starting a new task.`);
   const record = createRecord(root, 'tasks', 'TASK', {
@@ -386,11 +392,45 @@ function commandPreTaskCheck(args) {
     process.exitCode = 1;
     return;
   }
-  print({ root, ready: true, activeTask: active?.id ?? null });
+  const stale = active ? staleInfo(root, active) : null;
+  const report = { root, ready: true, activeTask: active?.id ?? null };
+  if (stale?.stale) report.warning = `Active task ${active.id} has not been updated for ${stale.ageHours}h (threshold ${stale.thresholdHours}h). ${releaseHint(active)}`;
+  print(report);
+}
+
+function commandInstallGlobal(args) {
+  print(installGlobal({ claudeDir: args['claude-dir'] ? path.resolve(args['claude-dir']) : undefined, replace: Boolean(args.replace), autoInit: Boolean(args['auto-init']), apply: !args['dry-run'] }));
+}
+
+function commandUninstallGlobal(args) {
+  print(uninstallGlobal({ claudeDir: args['claude-dir'] ? path.resolve(args['claude-dir']) : undefined, apply: !args['dry-run'] }));
+}
+
+const releasableStatuses = new Set(['active', 'blocked', 'handoff']);
+
+function commandReleaseTask(args) {
+  const root = targetRoot(args);
+  const task = readRecord(root, 'tasks', requireOption(args, 'task'));
+  if (!releasableStatuses.has(task.status)) throw new Error(`Task ${task.id} is ${task.status}; only active, blocked or handoff tasks can be released.`);
+  const owner = requireOption(args, 'owner');
+  const reason = requireOption(args, 'reason');
+  const previous = { status: task.status, owner: task.owner, ageHours: staleInfo(root, task).ageHours };
+  const evidence = createRecord(root, 'evidence', 'EVD', {
+    type: 'evidence', command: `release-task --task ${task.id}`, exitCode: 0, recordedBy: owner,
+    summary: `Released ${previous.status} task ${task.id} (owner ${previous.owner}, idle ${previous.ageHours ?? '?'}h): ${reason}`
+  });
+  task.status = 'abandoned';
+  task.releasedBy = owner;
+  task.releaseReason = reason;
+  task.releasedAt = new Date().toISOString();
+  task.evidenceIds = [...new Set([...(task.evidenceIds ?? []), evidence.id])];
+  writeRecord(root, 'tasks', task);
+  syncIndex(root);
+  print({ task, previous, evidence });
 }
 
 function help() {
-  process.stdout.write('Engineering OS commands: bootstrap, init-project, upgrade, start-task, show-task, show-handoff, update-task, record-evidence, record-incident, record-decision, enforce-lesson, handoff, accept-handoff, list-incidents, list-lessons, list-tasks, list-handoffs, list-decisions, list-evidence, verify-task, pre-task-check, check-project-safety\n');
+  process.stdout.write('Engineering OS commands: bootstrap, init-project, upgrade, start-task, show-task, show-handoff, update-task, record-evidence, record-incident, record-decision, enforce-lesson, handoff, accept-handoff, list-incidents, list-lessons, list-tasks, list-handoffs, list-decisions, list-evidence, verify-task, release-task, pre-task-check, check-project-safety, install-global, uninstall-global\n');
 }
 
 const [command = 'help', ...values] = process.argv.slice(2);
@@ -402,7 +442,7 @@ const commands = {
   'list-incidents': commandListIncidents, 'list-lessons': commandListLessons,
   'list-tasks': commandListTasks, 'list-handoffs': commandListHandoffs,
   'list-decisions': commandListDecisions, 'list-evidence': commandListEvidence,
-  'verify-task': commandVerifyTask, 'pre-task-check': commandPreTaskCheck, 'check-project-safety': commandCheckSafety, help
+  'verify-task': commandVerifyTask, 'release-task': commandReleaseTask, 'install-global': commandInstallGlobal, 'uninstall-global': commandUninstallGlobal, 'pre-task-check': commandPreTaskCheck, 'check-project-safety': commandCheckSafety, help
 };
 try {
   const handler = commands[command];
