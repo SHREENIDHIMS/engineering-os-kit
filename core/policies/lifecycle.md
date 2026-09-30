@@ -9,6 +9,7 @@
 7. **Prevent** — `enforce-lesson` with real prevention at `path:line` + validation evidence.
 8. **Transfer** — `handoff` then `accept-handoff`; next agent runs `show-task` or `show-handoff`.
 9. **Close** — `verify-task` only; sets status `complete` when evidence, locations, and lessons pass.
+   **Release** — a task whose owner is gone (flagged stale after `staleTaskHours`, default 24) is freed only with `release-task --reason`, which sets `abandoned` and records evidence. Confirm with the user before releasing a task you do not own.
 10. **Audit** — `check-project-safety` and CI workflow validate records on every push.
 
 All commands from the project root:

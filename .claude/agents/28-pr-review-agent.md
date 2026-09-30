@@ -14,6 +14,9 @@ Return severity-ranked findings with `path:line`, evidence, suggested resolution
 ## Finding schema
 Every finding must contain: `priority` (P0–P3), `path:line`, observed behavior, impact, credible failure scenario, suggested correction, and verification needed. Do not report cosmetic preferences as blockers. Return `approved` only when no P0/P1/P2 issue remains; otherwise return `blocked` and link the active task or incident.
 
+## Attribution gate
+AI attribution in any commit message, commit identity, PR title/body or review comment is a P1 finding: run `node scripts/engineering-os.mjs check-attribution --range <base>..HEAD --text "<PR title and body>"` and block until it reports `clean: true`. Your own review text must not mention or credit an AI tool either.
+
 
 
 ## Engineering OS (mandatory)

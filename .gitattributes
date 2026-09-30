@@ -1,0 +1,7 @@
+# Keep LF line endings on every platform. Windows checkouts with core.autocrlf=true would
+# otherwise turn files into CRLF, which breaks the POSIX shell hook (pre-task.sh) and any
+# byte-for-byte comparison of managed text (AGENTS.md contract, CLAUDE.md, .gitignore blocks).
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary

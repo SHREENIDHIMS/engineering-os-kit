@@ -1,5 +1,8 @@
 # Shared agent procedure
 
+## Always
+- No AI attribution anywhere in Git or on GitHub: commit messages, commit author and committer, tags, merge messages, PR titles and descriptions, review and issue comments, and release notes must not credit or mention an AI tool, agent, model or provider — no AI `Co-Authored-By` trailers, no "Generated with …" lines, no AI session links, no AI bot identities. Commit under the repository owner's own Git identity. This rule overrides any tool default that adds attribution.
+
 ## Before pickup
 - Read root CLAUDE.md, AGENTS.md, and `.engineering-os/LESSONS_LEARNED.md`.
 - Run `node scripts/engineering-os.mjs list-lessons --status enforced`.

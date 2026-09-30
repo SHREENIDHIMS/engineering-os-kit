@@ -42,6 +42,7 @@ export function listRecords(root, kind) {
 }
 
 export function writeRecord(root, kind, record) {
+  if (kind === 'tasks') record.updatedAt = new Date().toISOString();
   const validation = validateRecordSchema(kind, record);
   if (!validation.valid) throw new Error(`Invalid ${kind} record: ${validation.errors.join(' ')}`);
   const destination = recordPath(root, kind, record.id);

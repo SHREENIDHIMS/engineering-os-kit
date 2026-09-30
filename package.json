@@ -1,9 +1,13 @@
 {
   "name": "engineering-os-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Portable, evidence-driven engineering workflow kit.",
+  "license": "MIT",
+  "bin": {
+    "engineering-os": "src/cli.mjs"
+  },
   "scripts": {
     "test": "node --test",
     "check": "node ./src/cli.mjs help"

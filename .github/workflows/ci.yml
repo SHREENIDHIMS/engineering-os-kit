@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - run: npm run check
+      - run: node src/cli.mjs check-project-safety --target .
+
+  attribution:
+    # The kit's own history, PR title and PR body must carry no AI attribution.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check commits and PR text
+        env:
+          PR_TEXT: ${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "${PR_TEXT// /}" ]; then
+            node src/cli.mjs check-attribution --range "${PR_HEAD:-HEAD}" --text "$PR_TEXT"
+          else
+            node src/cli.mjs check-attribution --range HEAD
+          fi
+
+  smoke:
+    # Installs the kit the way a user would, on every OS, and requires doctor to report healthy.
+    name: install smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Project install, task gate and doctor
+        run: |
+          set -euo pipefail
+          KIT="$PWD"
+          WORK="$(mktemp -d)"
+          export CLAUDE_CONFIG_DIR="$WORK/home/.claude"
+          git init -q "$WORK/app"
+          cd "$WORK/app"
+          git config user.name "Smoke Test"
+          git config user.email "smoke@example.com"
+          node "$KIT/src/cli.mjs" init-project --target . > /dev/null
+          if node .engineering-os/hooks/claude-pre-edit.mjs; then echo "gate should block without a task"; exit 1; fi
+          node scripts/engineering-os.mjs start-task --title smoke --owner ci --acceptance ok > /dev/null
+          node .engineering-os/hooks/claude-pre-edit.mjs
+          node scripts/engineering-os.mjs doctor | tee doctor.json
+          node -e "const r=require('./doctor.json'); if (!r.healthy || r.summary.warn) process.exit(1)"
+      - name: Global install, hooks and uninstall
+        run: |
+          set -euo pipefail
+          KIT="$PWD"
+          WORK="$(mktemp -d)"
+          export CLAUDE_CONFIG_DIR="$WORK/home/.claude"
+          node "$KIT/src/cli.mjs" install-global > /dev/null
+          git init -q "$WORK/app2"
+          CLAUDE_PROJECT_DIR="$WORK/app2" node "$CLAUDE_CONFIG_DIR/engineering-os/hooks/global-session-start.mjs" | grep -q "does not have Engineering OS"
+          node "$CLAUDE_CONFIG_DIR/engineering-os/kit/src/cli.mjs" init-project --target "$WORK/app2" > /dev/null
+          node "$KIT/src/cli.mjs" doctor --target "$WORK/app2" > /dev/null
+          node "$KIT/src/cli.mjs" uninstall-global > /dev/null
+          test ! -e "$CLAUDE_CONFIG_DIR/engineering-os"

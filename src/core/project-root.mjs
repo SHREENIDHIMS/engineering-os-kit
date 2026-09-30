@@ -5,7 +5,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 export function resolveGitRoot(targetDirectory) {
   try {
     const root = execFileSync('git', ['-C', targetDirectory, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
-    return realpathSync(root);
+    return realpathSync.native(root);
   } catch {
     throw new Error(`Target is not inside a Git repository: ${targetDirectory}`);
   }

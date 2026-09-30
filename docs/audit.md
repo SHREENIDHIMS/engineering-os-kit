@@ -1,19 +1,28 @@
 # Engineering OS Kit — Capability Audit
 
-Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schema tests, source review, implementation plan slices 1–5.
+Audit date: 2026-09-30 (kit 0.2.0). Evidence: `npm test` (56 tests, CI on Linux/macOS/Windows × Node 20/22), focused lifecycle/schema tests, source review, implementation plan slices 1–5.
 
 ## Summary
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Portable CLI lifecycle | Complete | `src/cli.mjs`, 21 commands |
+| Portable CLI lifecycle | Complete | `src/cli.mjs` + `src/commands/`, 27 commands |
+| Claude Code hook wiring | Complete | `.claude/settings.json` SessionStart + PreToolUse gate |
+| CLAUDE.md import | Complete | managed `CLAUDE.md` section imports `AGENTS.md` |
+| Upgrade path | Complete | `upgrade` command |
+| Global install | Complete | `install-global` / `uninstall-global`, `docs/global-install.md` |
+| Stale task recovery | Complete | `release-task`, stale warnings in briefing and `pre-task-check` |
+| Health check | Complete | `doctor` |
+| No AI attribution | Complete | settings, PreToolUse hook, commit-msg hook, `check-attribution` in CI, `doctor` |
+| Cross-platform CI | Complete | `.github/workflows/ci.yml` matrix + install smoke job |
+| Versioned releases | Complete | `.github/workflows/release.yml`, `CHANGELOG.md` |
 | Project-local vendoring | Complete | `.engineering-os/kit/`, `scripts/engineering-os.mjs` |
 | Mistake / lesson memory | Complete | JSON + MISTAKES.md / LESSONS_LEARNED.md sync |
 | Agent handoff continuity | Complete | handoff, accept-handoff, show-handoff, show-task |
 | Schema validation on write | Complete | `schema-validate.mjs`, 6 schemas |
 | Pre-task enforcement | Complete | pre-task-check + executable hooks |
 | Target CI | Complete | `ci/engineering-os-target.yml` → `.github/workflows/` |
-| Claude adapter | Complete | 37 agents, 17 skills, 12 commands |
+| Claude adapter | Complete | 37 agents, 17 skills, 14 commands |
 | Policies | Complete | `core/policies/lifecycle.md`, `closure-rules.md` |
 | E2E lifecycle test | Complete | `test/e2e/lifecycle.test.mjs` |
 | GitHub install docs | Complete | `docs/github-install.md` |
@@ -24,6 +33,12 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 |---------|---------|--------|
 | bootstrap | Dry-run / apply project setup | Yes |
 | init-project | Full install + adapter | Yes |
+| upgrade | Refresh kit-owned files | Yes |
+| install-global | Machine-wide Claude Code install | Yes |
+| uninstall-global | Remove machine-wide install | Yes |
+| release-task | Free an abandoned task lock | Yes |
+| doctor | Health check with fixes | Yes |
+| check-attribution | Fail on AI attribution in commits/PR text | Yes |
 | start-task | Active task lock | Yes |
 | show-task | Task briefing | Yes |
 | show-handoff | Handoff briefing | Yes |
@@ -51,7 +66,9 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 | Specialist agents | 37 | Engineering OS block in each |
 | Unique skill workflows | 17 | De-templated procedures |
 | Role-specific gates | 5+ | incident, migration, security, PR, handoff |
-| Shared procedure | `_SHARED.md` | Available alongside role-specific protocols; top 10 agents have unique gates |
+| Shared procedure | `.claude/agent-shared/_SHARED.md` | Available alongside role-specific protocols; top 10 agents have unique gates |
+
+Agent numbers 34–36 are unused on purpose: filenames are stable IDs, and renumbering would leave stale copies behind in projects that upgrade.
 
 ## Safety invariants
 
@@ -63,6 +80,9 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 | Incidents require enforced lessons | verify-task |
 | Draft lessons skip evidence requirement | schema-validate |
 | Handoff blocks new tasks | start-task + pre-task-check |
+| Abandoned tasks need a reason and evidence | release-task |
+| Global install never deletes user config | `--replace` moves to backups; tests cover credentials/settings |
+| No AI attribution in Git or GitHub | commit-msg hook, PreToolUse hook, CI, `attribution` settings |
 
 ## Slice 5 completion
 
@@ -78,11 +98,8 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 
 | Gap | Priority |
 |-----|----------|
-| Split CLI into `src/commands/*.mjs` | Low |
 | JSON Schema draft-2020 full validator library | Low |
-| Stale task lock expiry | Medium |
 | `record-decision` sync to INDEX.md table | Low |
-| Renumber agents 37–40 → 34–37 | Low |
 
 ## Acceptance (implementation plan)
 

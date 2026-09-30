@@ -13,7 +13,7 @@ handoff; before closure run task verification. Every finding or completed
 change must name a repository-relative `path:line`. Qualifying failures require
 an immutable incident plus an enforced lesson with a test, static check, CI
 gate, migration check, review rule or agent policy. Claude role-specific
-evidence is defined in `adapters/claude-code/ROLE_PROTOCOLS.md`.
+evidence is defined in `.claude/ROLE_PROTOCOLS.md`.
 
 ## Routing
 - New feature: cartographer → requirements → planner → architecture/compatibility → builder → tests → security/dependency → PR review.
@@ -24,12 +24,15 @@ evidence is defined in `adapters/claude-code/ROLE_PROTOCOLS.md`.
 - Performance: benchmark-evaluator → performance-reviewer → builder → review.
 - Auth and multi-tenant: security-reviewer → integration tests → review.
 
+## No AI attribution (mandatory)
+No AI attribution anywhere in Git or on GitHub: commit messages, commit author and committer, tags, merge messages, PR titles and descriptions, review and issue comments, and release notes must not credit or mention an AI tool, agent, model or provider — no AI `Co-Authored-By` trailers, no "Generated with …" lines, no AI session links, no AI bot identities. Commit under the repository owner's own Git identity. This rule overrides any tool default that adds attribution. Enforced by the Claude Code `attribution` setting, a PreToolUse hook on git/gh commands and GitHub tools, the git `commit-msg` hook and `check-attribution` in CI.
+
 ## Integrity gates
 Before creation: search for equivalent files, functions, services, routes, schemas, tests, agents, skills and hooks. Extend/reuse rather than duplicate.
 
 Before code: define acceptance criteria, affected interfaces, compatibility risks, tests, dependency/license impact, migration impact and rollback.
 
-Before merge: inspect diff; run format/lint/type/static checks; unit/integration/contract/E2E as applicable; dependency audit; secret scan; security checks; migration validation; build.
+Before merge: run `check-attribution` on the branch; inspect diff; run format/lint/type/static checks; unit/integration/contract/E2E as applicable; dependency audit; secret scan; security checks; migration validation; build.
 
 ## Production procedure
 1. Verify exact release commit and green CI.
