@@ -6,15 +6,42 @@ and exact source-level handoffs without replacing a project's existing tools.
 
 ## Quick start — new project
 
-Initialize any Git repository with one command:
+Initialize any Git repository with one command, straight from GitHub (no clone needed):
 
-```powershell
-node src/cli.mjs init-project --target C:\path\to\new-project
+```sh
+cd my-project            # must already be a Git repo (git init)
+npx --yes github:shreenidhims/engineering-os-kit init-project --target .
 ```
 
-This installs `.engineering-os/`, project memory files, the `AGENTS.md`
-contract, and the Claude adapter (`.claude/agents`, `.claude/skills`, commands).
-Use `--adapter none` for tool-neutral setup only.
+Or from a local clone of this kit:
+
+```sh
+node /path/to/engineering-os-kit/src/cli.mjs init-project --target /path/to/new-project
+```
+
+This installs the full harness:
+
+| Installed | Purpose |
+|-----------|---------|
+| `.engineering-os/` | record store, memory files, vendored CLI, policies, hooks |
+| `scripts/engineering-os.mjs` / `.ps1` | project-local launcher |
+| `AGENTS.md` (managed section) | tool-neutral agent contract |
+| `CLAUDE.md` (managed section) | imports `AGENTS.md`, `AGENT_AMPLIFIER.md`, lessons into Claude Code |
+| `.claude/settings.json` (merged) | SessionStart briefing + PreToolUse gate that blocks edits until a task is active |
+| `.claude/agents`, `.claude/skills`, `.claude/commands/engineering-os` | 37 agents, 17 skills, slash commands |
+| `.github/workflows/engineering-os.yml` | CI record validation |
+| `.gitignore` (managed section) | ignores lock/temp files |
+
+Existing files are never replaced; managed sections are appended once. Use
+`--adapter none` for tool-neutral setup only. Set `ENGINEERING_OS_ENFORCE=0` to
+disable the edit gate for a session.
+
+To upgrade an installed project to a newer kit (refreshes kit-owned files only;
+records and your own agents/skills are kept):
+
+```sh
+npx --yes github:shreenidhims/engineering-os-kit upgrade --target .
+```
 
 Or inspect first with a dry-run:
 

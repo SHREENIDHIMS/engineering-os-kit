@@ -6,7 +6,10 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Portable CLI lifecycle | Complete | `src/cli.mjs`, 21 commands |
+| Portable CLI lifecycle | Complete | `src/cli.mjs`, 22 commands |
+| Claude Code hook wiring | Complete | `.claude/settings.json` SessionStart + PreToolUse gate |
+| CLAUDE.md import | Complete | managed `CLAUDE.md` section imports `AGENTS.md` |
+| Upgrade path | Complete | `upgrade` command |
 | Project-local vendoring | Complete | `.engineering-os/kit/`, `scripts/engineering-os.mjs` |
 | Mistake / lesson memory | Complete | JSON + MISTAKES.md / LESSONS_LEARNED.md sync |
 | Agent handoff continuity | Complete | handoff, accept-handoff, show-handoff, show-task |
@@ -24,6 +27,7 @@ Audit date: 2026-09-16. Evidence: `npm test` (22 tests), focused lifecycle/schem
 |---------|---------|--------|
 | bootstrap | Dry-run / apply project setup | Yes |
 | init-project | Full install + adapter | Yes |
+| upgrade | Refresh kit-owned files | Yes |
 | start-task | Active task lock | Yes |
 | show-task | Task briefing | Yes |
 | show-handoff | Handoff briefing | Yes |

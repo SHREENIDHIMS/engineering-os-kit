@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -171,4 +171,57 @@ test('list commands expose stored records by kind', () => {
   assert.equal(JSON.parse(run(root, 'list-tasks')).count, 1);
   assert.equal(JSON.parse(run(root, 'list-evidence')).evidence[0].id, evidence.id);
   assert.equal(JSON.parse(run(root, 'list-decisions')).decisions.length, 1);
+});
+
+test('init-project wires Claude Code hooks, CLAUDE.md and .gitignore without clobbering existing files', () => {
+  const root = fixtureRoot();
+  mkdirSync(path.join(root, '.claude'), { recursive: true });
+  writeFileSync(path.join(root, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(ls)'] } }));
+  writeFileSync(path.join(root, 'CLAUDE.md'), '# Existing Claude rules\n');
+  writeFileSync(path.join(root, '.gitignore'), 'dist/\n');
+  run(root, 'init-project');
+  run(root, 'init-project');
+  const settings = JSON.parse(readFileSync(path.join(root, '.claude', 'settings.json'), 'utf8'));
+  assert.deepEqual(settings.permissions.allow, ['Bash(ls)']);
+  assert.equal(settings.hooks.PreToolUse.length, 1);
+  assert.equal(settings.hooks.SessionStart.length, 1);
+  const claudeMd = readFileSync(path.join(root, 'CLAUDE.md'), 'utf8');
+  assert.match(claudeMd, /Existing Claude rules/);
+  assert.equal(claudeMd.match(/@AGENTS\.md/g).length, 1);
+  const gitignore = readFileSync(path.join(root, '.gitignore'), 'utf8');
+  assert.match(gitignore, /^dist\//);
+  assert.equal(gitignore.match(/engineering-os:managed:start/g).length, 1);
+  assert.equal(existsSync(path.join(root, '.claude', 'ROLE_PROTOCOLS.md')), true);
+});
+
+test('claude pre-edit hook blocks with exit 2 until a task is active', () => {
+  const root = fixtureRoot();
+  run(root, 'init-project');
+  const hook = path.join(root, '.engineering-os', 'hooks', 'claude-pre-edit.mjs');
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: root };
+  const blocked = spawnSync(process.execPath, [hook], { encoding: 'utf8', env });
+  assert.equal(blocked.status, 2);
+  assert.match(blocked.stderr, /No active task/);
+  run(root, 'start-task', '--title', 'Feature', '--owner', 'code-builder', '--acceptance', 'done');
+  assert.equal(spawnSync(process.execPath, [hook], { encoding: 'utf8', env }).status, 0);
+  const briefing = spawnSync(process.execPath, [path.join(root, '.engineering-os', 'hooks', 'claude-session-start.mjs')], { encoding: 'utf8', env });
+  assert.match(briefing.stdout, /Active task: TASK-/);
+});
+
+test('upgrade refreshes kit-owned files but preserves records and user agents', () => {
+  const root = fixtureRoot();
+  run(root, 'init-project');
+  const vendoredCli = path.join(root, '.engineering-os', 'kit', 'src', 'cli.mjs');
+  writeFileSync(vendoredCli, '// stale\n');
+  writeFileSync(path.join(root, '.claude', 'agents', 'my-custom-agent.md'), '---\nname: mine\n---\n');
+  run(root, 'start-task', '--title', 'Feature', '--owner', 'code-builder', '--acceptance', 'done');
+  const result = JSON.parse(run(root, 'upgrade'));
+  assert.equal(result.adapter.adapter, 'claude');
+  assert.notEqual(readFileSync(vendoredCli, 'utf8'), '// stale\n');
+  assert.equal(existsSync(path.join(root, '.claude', 'agents', 'my-custom-agent.md')), true);
+  assert.equal(JSON.parse(run(root, 'list-tasks')).count, 1);
+  const selfUpgrade = spawnSync(process.execPath, [path.join(root, 'scripts', 'engineering-os.mjs'), 'upgrade'], { encoding: 'utf8', cwd: root });
+  assert.equal(selfUpgrade.status, 1);
+  assert.match(selfUpgrade.stderr, /newer kit clone/);
+  assert.equal(existsSync(vendoredCli), true);
 });

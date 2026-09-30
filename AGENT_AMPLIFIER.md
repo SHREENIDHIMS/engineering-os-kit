@@ -13,7 +13,7 @@ handoff; before closure run task verification. Every finding or completed
 change must name a repository-relative `path:line`. Qualifying failures require
 an immutable incident plus an enforced lesson with a test, static check, CI
 gate, migration check, review rule or agent policy. Claude role-specific
-evidence is defined in `adapters/claude-code/ROLE_PROTOCOLS.md`.
+evidence is defined in `.claude/ROLE_PROTOCOLS.md`.
 
 ## Routing
 - New feature: cartographer → requirements → planner → architecture/compatibility → builder → tests → security/dependency → PR review.

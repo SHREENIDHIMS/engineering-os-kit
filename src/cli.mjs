@@ -131,7 +131,7 @@ function commandBootstrap(args) {
   const missing = initializeStore(root, { write: apply });
   const agents = ensureManagedAgents(root, apply);
   const projectFiles = initializeProjectFiles(root, apply);
-  const adapter = installAdapter(root, args.adapter ?? 'none', { write: apply, version: kitVersion(), installedFrom: kitRootPath() });
+  const adapter = installAdapter(root, args.adapter ?? 'none', { write: apply, force: Boolean(args.force), version: kitVersion(), installedFrom: kitRootPath() });
   print({ root, mode: apply ? 'applied' : 'dry-run', missingDirectories: missing, agents, projectFiles, adapter });
 }
 
@@ -347,6 +347,17 @@ function commandInitProject(args) {
   commandBootstrap({ ...args, apply: true, adapter: args.adapter ?? 'claude' });
 }
 
+function commandUpgrade(args) {
+  const root = targetRoot(args);
+  const configPath = path.join(root, '.engineering-os', 'config.json');
+  if (!existsSync(configPath)) throw new Error('Engineering OS not initialized in target. Run init-project first.');
+  if (path.resolve(kitRootPath()) === path.join(root, '.engineering-os', 'kit')) {
+    throw new Error('Run upgrade from a newer kit clone (node <kit>/src/cli.mjs upgrade --target .), not from the vendored copy.');
+  }
+  const installed = JSON.parse(readFileSync(configPath, 'utf8'));
+  commandBootstrap({ ...args, apply: true, force: true, adapter: args.adapter ?? installed.adapter ?? 'claude' });
+}
+
 function collectSafetyErrors(root) {
   const invalidLocations = [];
   for (const kind of ['tasks', 'lessons', 'handoffs']) for (const record of listRecords(root, kind)) {
@@ -379,12 +390,12 @@ function commandPreTaskCheck(args) {
 }
 
 function help() {
-  process.stdout.write('Engineering OS commands: bootstrap, init-project, start-task, show-task, show-handoff, update-task, record-evidence, record-incident, record-decision, enforce-lesson, handoff, accept-handoff, list-incidents, list-lessons, list-tasks, list-handoffs, list-decisions, list-evidence, verify-task, pre-task-check, check-project-safety\n');
+  process.stdout.write('Engineering OS commands: bootstrap, init-project, upgrade, start-task, show-task, show-handoff, update-task, record-evidence, record-incident, record-decision, enforce-lesson, handoff, accept-handoff, list-incidents, list-lessons, list-tasks, list-handoffs, list-decisions, list-evidence, verify-task, pre-task-check, check-project-safety\n');
 }
 
 const [command = 'help', ...values] = process.argv.slice(2);
 const commands = {
-  bootstrap: commandBootstrap, 'init-project': commandInitProject, 'start-task': commandStartTask,
+  bootstrap: commandBootstrap, 'init-project': commandInitProject, upgrade: commandUpgrade, 'start-task': commandStartTask,
   'show-task': commandShowTask, 'show-handoff': commandShowHandoff, 'update-task': commandUpdateTask,
   'record-evidence': commandRecordEvidence, 'record-incident': commandRecordIncident, 'record-decision': commandRecordDecision,
   'enforce-lesson': commandEnforceLesson, handoff: commandHandoff, 'accept-handoff': commandAcceptHandoff,

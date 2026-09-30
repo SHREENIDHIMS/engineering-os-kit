@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Portable, evidence-driven engineering workflow kit.",
+  "bin": {
+    "engineering-os": "src/cli.mjs"
+  },
   "scripts": {
     "test": "node --test",
     "check": "node ./src/cli.mjs help"

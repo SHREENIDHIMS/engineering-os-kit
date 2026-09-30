@@ -49,6 +49,14 @@ git init
 
 ## Step 4 — Install into the new project (one command)
 
+Fastest — no clone needed, works on macOS/Linux/Windows:
+
+```sh
+cd my-new-app
+npx --yes github:shreenidhims/engineering-os-kit init-project --target .
+```
+
+
 From the cloned kit directory:
 
 ```powershell
@@ -77,7 +85,7 @@ No `--target` needed when using `scripts/engineering-os.mjs`.
 
 1. Clone **your app repo** (which now contains `.engineering-os/kit/` and `scripts/`).
 2. Run commands with `node scripts/engineering-os.mjs` — paths still work.
-3. To upgrade the kit, re-run `init-project` from a newer kit clone (idempotent; skips existing files).
+3. To upgrade the kit, run `upgrade --target .` from a newer kit clone. (`init-project` is idempotent and skips existing files, so it does not upgrade.)
 
 ## Optional: kit as submodule
 

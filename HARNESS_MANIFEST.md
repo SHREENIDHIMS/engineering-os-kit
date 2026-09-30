@@ -4,6 +4,8 @@
 - `.claude/agents/`: 37 general-purpose specialist agents (domain-specific roles removed).
 - `.claude/skills/`: 17 focused skills loaded on demand.
 - `docs/agent-harness/REPOSITORY_CATALOG.md`: reference catalog for third-party harness entries.
+- `.claude/ROLE_PROTOCOLS.md`: role-specific evidence each agent must record.
+- `adapters/claude-code/hooks/`: pre-task gate and SessionStart briefing, wired into target `.claude/settings.json` by `init-project`.
 - `docs/agent-harness/AGENT_MATRIX.md`: agent responsibility map.
 
 ## Installation rule
