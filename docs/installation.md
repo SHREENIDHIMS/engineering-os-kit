@@ -83,6 +83,12 @@ See [GitHub install flow](github-install.md) for pushing the kit to GitHub and i
 
 The adapter is an instruction layer; all durable state remains in `.engineering-os`.
 
+## Checking the install
+
+Run `node scripts/engineering-os.mjs doctor` after installing or upgrading. It
+verifies the record store, launcher, vendored kit, record validity, hooks and
+managed sections, and prints a fix command for each problem.
+
 ## Upgrading
 
 Run `upgrade` from a newer kit clone (or via `npx github:...`). It overwrites

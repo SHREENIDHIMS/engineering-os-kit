@@ -100,6 +100,9 @@ Projects that were set up keep working after uninstall: they carry their own cop
 
 ## Troubleshooting
 
+Start with `node ~/.claude/engineering-os/kit/src/cli.mjs doctor`: it checks the global
+kit, hook files and `settings.json` entries and prints the fix for anything missing.
+
 | Symptom | Fix |
 |---------|-----|
 | `settings.json is not valid JSON` | Fix the JSON (or move the file away) and re-run; nothing was changed. |

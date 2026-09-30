@@ -2,7 +2,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmS
 import path from 'node:path';
 import { osDirectory } from './storage.mjs';
 import { launcherPs1, launcherScript } from './project-launcher.mjs';
-import { kitRoot, kitSource } from './kit-source.mjs';
+import { kitRoot, kitSource, samePath } from './kit-source.mjs';
 
 // Everything below is kit-owned: `upgrade` (force) overwrites it. Project records,
 // memory files (INDEX/MISTAKES/LESSONS_LEARNED) and user-added agents/skills are never touched.
@@ -51,7 +51,7 @@ const claudeMdBlock = `${claudeMdStart}\n## Engineering OS\n\nThis project uses 
 
 function copyTree(source, destination, { apply, force = false, replace = false }) {
   if (!existsSync(source)) return { source, destination, status: 'missing-source' };
-  if (path.resolve(source) === path.resolve(destination)) return { source, destination, status: 'present' };
+  if (samePath(source, destination)) return { source, destination, status: 'present' };
   const present = existsSync(destination);
   if (present && !force) return { source, destination, status: 'present' };
   if (!apply) return { source, destination, status: present ? 'would-update' : 'would-add' };
@@ -76,7 +76,7 @@ function writeFile(root, relativePath, content, { apply, force = false }) {
 
 // Appends a delimited block once. With force (upgrade), an outdated block is replaced in place;
 // text outside the markers is never changed.
-function upsertManagedBlock(root, relativePath, start, end, block, { apply, force = false }) {
+export function upsertManagedBlock(root, relativePath, start, end, block, { apply, force = false }) {
   const destination = path.join(root, relativePath);
   const current = existsSync(destination) ? readFileSync(destination, 'utf8') : '';
   const startIndex = current.indexOf(start);

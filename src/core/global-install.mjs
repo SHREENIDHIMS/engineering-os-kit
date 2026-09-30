@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { kitRoot, kitSource } from './kit-source.mjs';
+import { kitRoot, kitSource, samePath } from './kit-source.mjs';
 
 // Global (user-level) install into the Claude Code config directory, normally ~/.claude.
 //
@@ -142,7 +142,7 @@ export function installGlobal({ claudeDir = defaultClaudeDir(), replace = false,
   const claudeCodeDetected = existsSync(claudeDir);
 
   // Installing from the global copy would delete the running kit before copying it.
-  if (path.resolve(kitRoot) === path.resolve(kitDir)) {
+  if (samePath(kitRoot, kitDir)) {
     throw new Error('Run install-global from a kit clone or npx github:shreenidhims/engineering-os-kit, not from the installed global copy.');
   }
 

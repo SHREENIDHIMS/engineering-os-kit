@@ -1,24 +1,27 @@
 # Engineering OS Kit — Capability Audit
 
-Audit date: 2026-09-30. Evidence: `npm test` (40 tests), focused lifecycle/schema tests, source review, implementation plan slices 1–5.
+Audit date: 2026-09-30 (kit 0.2.0). Evidence: `npm test` (48 tests, CI on Linux/macOS/Windows × Node 20/22), focused lifecycle/schema tests, source review, implementation plan slices 1–5.
 
 ## Summary
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Portable CLI lifecycle | Complete | `src/cli.mjs`, 25 commands |
+| Portable CLI lifecycle | Complete | `src/cli.mjs` + `src/commands/`, 26 commands |
 | Claude Code hook wiring | Complete | `.claude/settings.json` SessionStart + PreToolUse gate |
 | CLAUDE.md import | Complete | managed `CLAUDE.md` section imports `AGENTS.md` |
 | Upgrade path | Complete | `upgrade` command |
 | Global install | Complete | `install-global` / `uninstall-global`, `docs/global-install.md` |
 | Stale task recovery | Complete | `release-task`, stale warnings in briefing and `pre-task-check` |
+| Health check | Complete | `doctor` |
+| Cross-platform CI | Complete | `.github/workflows/ci.yml` matrix + install smoke job |
+| Versioned releases | Complete | `.github/workflows/release.yml`, `CHANGELOG.md` |
 | Project-local vendoring | Complete | `.engineering-os/kit/`, `scripts/engineering-os.mjs` |
 | Mistake / lesson memory | Complete | JSON + MISTAKES.md / LESSONS_LEARNED.md sync |
 | Agent handoff continuity | Complete | handoff, accept-handoff, show-handoff, show-task |
 | Schema validation on write | Complete | `schema-validate.mjs`, 6 schemas |
 | Pre-task enforcement | Complete | pre-task-check + executable hooks |
 | Target CI | Complete | `ci/engineering-os-target.yml` → `.github/workflows/` |
-| Claude adapter | Complete | 37 agents, 17 skills, 13 commands |
+| Claude adapter | Complete | 37 agents, 17 skills, 14 commands |
 | Policies | Complete | `core/policies/lifecycle.md`, `closure-rules.md` |
 | E2E lifecycle test | Complete | `test/e2e/lifecycle.test.mjs` |
 | GitHub install docs | Complete | `docs/github-install.md` |
@@ -33,6 +36,7 @@ Audit date: 2026-09-30. Evidence: `npm test` (40 tests), focused lifecycle/schem
 | install-global | Machine-wide Claude Code install | Yes |
 | uninstall-global | Remove machine-wide install | Yes |
 | release-task | Free an abandoned task lock | Yes |
+| doctor | Health check with fixes | Yes |
 | start-task | Active task lock | Yes |
 | show-task | Task briefing | Yes |
 | show-handoff | Handoff briefing | Yes |
@@ -91,7 +95,6 @@ Agent numbers 34–36 are unused on purpose: filenames are stable IDs, and renum
 
 | Gap | Priority |
 |-----|----------|
-| Split CLI into `src/commands/*.mjs` | Low |
 | JSON Schema draft-2020 full validator library | Low |
 | `record-decision` sync to INDEX.md table | Low |
 

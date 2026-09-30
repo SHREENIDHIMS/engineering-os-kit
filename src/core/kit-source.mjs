@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,4 +19,16 @@ export function kitSource(root = kitRoot) {
     try { commit = JSON.parse(readFileSync(path.join(root, 'kit-source.json'), 'utf8')).commit ?? null; } catch { /* unknown */ }
   }
   return { version, commit, label: `engineering-os-kit@${version}${commit ? ` (${commit})` : ''}` };
+}
+
+// True when two paths name the same location. Resolves symlinks and, on Windows, 8.3 short
+// names (RUNNER~1) and drive-letter case, which plain string comparison misses. Used by the
+// guards that stop a kit copy from overwriting or deleting itself.
+export function samePath(a, b) {
+  const normalize = (value) => {
+    let resolved;
+    try { resolved = realpathSync.native(value); } catch { resolved = path.resolve(value); }
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  return normalize(a) === normalize(b);
 }

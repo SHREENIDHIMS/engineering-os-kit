@@ -4,7 +4,8 @@ An offline, project-local engineering workflow kit for Claude Code, Codex, and
 other coding agents. It creates durable task evidence, incident/lesson records,
 and exact source-level handoffs without replacing a project's existing tools.
 
-Requirements: Node.js 20+, Git. No runtime dependencies. Licensed under [MIT](LICENSE).
+Requirements: Node.js 20+, Git. No runtime dependencies. Tested on Linux, macOS and Windows.
+Licensed under [MIT](LICENSE). See the [changelog](CHANGELOG.md).
 
 There are two ways to install it, and they work together:
 
@@ -100,6 +101,18 @@ node scripts/engineering-os.mjs release-task --task TASK-... --owner you --reaso
 Run `node scripts/engineering-os.mjs help` for all commands and see the
 [record reference](docs/record-reference.md).
 
+## Checking an install
+
+`doctor` is a read-only health check of Node/Git, the global install and the
+current project. Every problem it finds comes with the exact command that fixes it:
+
+```sh
+node scripts/engineering-os.mjs doctor                  # in a set-up project
+node ~/.claude/engineering-os/kit/src/cli.mjs doctor    # anywhere, after install-global
+```
+
+It exits with code 1 only on real failures, so CI can run it.
+
 ## Upgrading
 
 `init-project` never overwrites, so it does not upgrade. Use `upgrade`, which
@@ -113,6 +126,16 @@ npx --yes github:shreenidhims/engineering-os-kit install-global              # t
 ```
 
 When the global kit is newer than a project's, the session briefing suggests the upgrade.
+
+### Pinning a version
+
+`github:shreenidhims/engineering-os-kit` always means the latest `main`. To use a
+released version instead, add its tag (see [releases](https://github.com/shreenidhims/engineering-os-kit/releases)
+and the [changelog](CHANGELOG.md)):
+
+```sh
+npx --yes github:shreenidhims/engineering-os-kit#v0.2.0 init-project --target .
+```
 
 ## Documentation
 

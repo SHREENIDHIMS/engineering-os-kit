@@ -129,3 +129,22 @@ test('upgrade refreshes an outdated managed .gitignore block and keeps user line
   assert.match(gitignore, /\.engineering-os\/backups\//);
   assert.equal(gitignore.match(/engineering-os:managed:start/g).length, 1);
 });
+
+test('upgrade refreshes an outdated AGENTS.md contract and keeps the rest of the file', () => {
+  const root = fixtureRoot();
+  writeFileSync(path.join(root, 'AGENTS.md'), '# Team rules\n\n<!-- engineering-os:managed:start -->\nold contract\n<!-- engineering-os:managed:end -->\n\n## More team rules\n');
+  run(root, 'init-project');
+  assert.match(readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), /old contract/);
+  assert.equal(run(root, 'upgrade').agents.status, 'updated');
+  const agents = readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(agents, /old contract/);
+  assert.match(agents, /release-task --reason/);
+  assert.match(agents, /^# Team rules/);
+  assert.match(agents, /## More team rules\n$/);
+  assert.equal(agents.match(/engineering-os:managed:start/g).length, 1);
+});
+
+test('the documented AGENTS.md contract matches the one the CLI writes', async () => {
+  const { agentsContract } = await import('../../src/core/agents-contract.mjs');
+  assert.equal(readFileSync(path.resolve('adapters/tool-neutral/AGENTS.managed.md'), 'utf8'), agentsContract);
+});
